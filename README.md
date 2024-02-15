@@ -44,10 +44,14 @@ Extension of kitt sensorisation for navigation purposes. It includes the followi
 * `/model/kitt/rplidar_a2m8` (gz.msgs.LaserScan) RPLIDAR A2M8 360º LiDAR configured with its default parameters.
 
 
-### kitt_fpv_dd
+### kitt_vr_dd
 
-Kitt model with two cameras to generate either a FPV or a VR front view. These cameras are weightless and fixed to the original model.
-* `/model/kitt/left_fpv_camera` and `/model/kitt/right_fpv_camera` (gz.msgs.Image) Images from each eye's camera (320x240).
+Kitt model with two cameras to generate a VR front view. These cameras are weightless and fixed to the original model.
+* `/model/kitt/left_vr_camera` and `/model/kitt/right_vr_camera` (gz.msgs.Image) Images from each eye's camera (320x240).
+
+### kitt_fpv_dd
+Kitt model with a front camera to generate a FPV view. This camera is weightless and fixed to the original model.
+* `/model/kitt/fpv_camera` (gz.msgs.Image) Front camera image (640x480).
 
 
 ## Plugins
