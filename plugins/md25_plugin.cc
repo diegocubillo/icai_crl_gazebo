@@ -33,12 +33,30 @@ void md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Elemen
     return;
   }
 
+  this->rightMotor.jointName = _sdf->Get<std::string>("right_joint");
+  if (this->rightMotor.jointName.empty())
+  {
+    ignerr << "md25_plugin found an empty right_joint parameter. "
+           << "Failed to initialize.";
+    return;
+  }
+
+
   // Check that mandatory params exist within the model
   this->leftMotor.jointEntity = this->model.JointByName(_ecm,
       this->leftMotor.jointName);
   if (this->leftMotor.jointEntity == kNullEntity)
   {
     ignerr << "Left joint with name [" << this->leftMotor.jointName << "] not found. "
+    << "The md25_plugin may not control this joint.\n";
+    return;
+  }
+
+  this->rightMotor.jointEntity = this->model.JointByName(_ecm,
+      this->rightMotor.jointName);
+  if (this->rightMotor.jointEntity == kNullEntity)
+  {
+    ignerr << "Right joint with name [" << this->rightMotor.jointName << "] not found. "
     << "The md25_plugin may not control this joint.\n";
     return;
   }
@@ -105,7 +123,7 @@ void md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Elemen
 
 void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
 {
-  // Advertise publisher
+  // Advertise publishers
   this->leftMotor.torquePublisher = this->node.Advertise<msgs::Double>(
       "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_output_torque"); 
 
@@ -118,24 +136,37 @@ void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Elemen
   this->leftMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
       "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_encoder");
 
+  this->rightMotor.torquePublisher = this->node.Advertise<msgs::Double>(
+      "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_output_torque"); 
+
+  this->rightMotor.jointVelocityPublisher = this->node.Advertise<msgs::Double>(
+      "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/joint_velocity"); 
+
+  this->rightMotor.voltagePublisher = this->node.Advertise<msgs::Double>(
+      "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_voltage"); 
+
+  this->rightMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
+      "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_encoder");
+
+
   // Subscribe to commands
   std::string topic = transport::TopicUtils::AsValidTopic("/model/" +
       this->model.Name(_ecm) + "/" + this->leftMotor.jointName +
-      "/motor_voltage_cmd");
+      "/motor_volt_cmd");
   if (topic.empty())
   {
     ignerr << "Failed to create topic for joint [" << this->leftMotor.jointName 
            << "]" << std::endl;
     return;
   }
-  if (_sdf->HasElement("topic"))
+  if (_sdf->HasElement("left_volt_cmd_topic"))
   {
     topic = transport::TopicUtils::AsValidTopic(
-        _sdf->Get<std::string>("topic"));
+        _sdf->Get<std::string>("left_volt_cmd_topic"));
 
     if (topic.empty())
     {
-      ignerr << "Failed to create topic [" << _sdf->Get<std::string>("topic")
+      ignerr << "Failed to create topic [" << _sdf->Get<std::string>("left_volt_cmd_topic")
              << "]" << " for joint [" << this->leftMotor.jointName 
              << "]" << std::endl;
       return;
@@ -143,6 +174,32 @@ void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Elemen
   }
   this->node.Subscribe(topic, &md25_motor::OnCmdVolt, &(this->leftMotor));
 
+  topic = transport::TopicUtils::AsValidTopic("/model/" +
+      this->model.Name(_ecm) + "/" + this->rightMotor.jointName +
+      "/motor_volt_cmd");
+  if (topic.empty())
+  {
+    ignerr << "Failed to create topic for joint [" << this->rightMotor.jointName 
+           << "]" << std::endl;
+    return;
+  }
+  if (_sdf->HasElement("right_volt_cmd_topic"))
+  {
+    topic = transport::TopicUtils::AsValidTopic(
+        _sdf->Get<std::string>("right_volt_cmd_topic"));
+
+    if (topic.empty())
+    {
+      ignerr << "Failed to create topic [" << _sdf->Get<std::string>("right_volt_cmd_topic")
+             << "]" << " for joint [" << this->rightMotor.jointName 
+             << "]" << std::endl;
+      return;
+    }
+  }
+  this->node.Subscribe(topic, &md25_motor::OnCmdVolt, &(this->rightMotor));
+
+
+  // Subscribe to torque measurements
   topic = transport::TopicUtils::AsValidTopic("/model/" +
       this->model.Name(_ecm) + "/" + this->leftMotor.jointName +
       "/torque_sensor");
@@ -152,14 +209,14 @@ void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Elemen
            << "]" << std::endl;
     return;
   }
-  if (_sdf->HasElement("torque_topic"))
+  if (_sdf->HasElement("left_torque_topic"))
   {
     topic = transport::TopicUtils::AsValidTopic(
-        _sdf->Get<std::string>("torque_topic"));
+        _sdf->Get<std::string>("left_torque_topic"));
 
     if (topic.empty())
     {
-      ignerr << "Failed to create topic [" << _sdf->Get<std::string>("torque_topic")
+      ignerr << "Failed to create topic [" << _sdf->Get<std::string>("left_torque_topic")
              << "]" << " for joint [" << this->leftMotor.jointName 
              << "]" << std::endl;
       return;
@@ -167,6 +224,34 @@ void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Elemen
   }
   this->node.Subscribe(topic, &md25_motor::OnTorqueMeasure,
                                 &(this->leftMotor));
+
+  ignmsg << "md25_plugin subscribing to Wrench messages on [" << topic
+          << "]" << std::endl;
+
+  topic = transport::TopicUtils::AsValidTopic("/model/" +
+      this->model.Name(_ecm) + "/" + this->rightMotor.jointName +
+      "/torque_sensor");
+  if (topic.empty())
+  {
+    ignerr << "Failed to create topic for joint [" << this->rightMotor.jointName 
+           << "]" << std::endl;
+    return;
+  }
+  if (_sdf->HasElement("right_torque_topic"))
+  {
+    topic = transport::TopicUtils::AsValidTopic(
+        _sdf->Get<std::string>("right_torque_topic"));
+
+    if (topic.empty())
+    {
+      ignerr << "Failed to create topic [" << _sdf->Get<std::string>("right_torque_topic")
+             << "]" << " for joint [" << this->rightMotor.jointName 
+             << "]" << std::endl;
+      return;
+    }
+  }
+  this->node.Subscribe(topic, &md25_motor::OnTorqueMeasure,
+                                &(this->rightMotor));
 
   ignmsg << "md25_plugin subscribing to Wrench messages on [" << topic
           << "]" << std::endl;
@@ -254,9 +339,11 @@ void md25_plugin::PreUpdate(const UpdateInfo &_info,
   
   // Update encoder
   this->dataPtr->leftMotor.EncoderSystem(_info, _ecm, this->dataPtr->radPerPulse);
+  this->dataPtr->rightMotor.EncoderSystem(_info, _ecm, this->dataPtr->radPerPulse);
 
   // Update motor
   this->dataPtr->leftMotor.MotorSystem(_info, _ecm, this->dataPtr.get());
+  this->dataPtr->rightMotor.MotorSystem(_info, _ecm, this->dataPtr.get());
 }
 
 

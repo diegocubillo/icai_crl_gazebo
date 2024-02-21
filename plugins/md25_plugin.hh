@@ -97,7 +97,7 @@ class md25_pluginPrivate
 
   /// \brief Motors
   public: md25_motor leftMotor;
-  // public: md25_motor rightMotor;
+  public: md25_motor rightMotor;
 
   public: void LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
   public: void AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
