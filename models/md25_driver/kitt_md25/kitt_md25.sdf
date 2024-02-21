@@ -11,11 +11,8 @@
       filename="md25_plugin"
       name="icai_crl_gazebo::MD25Plugin">
       <left_joint>left_wheel_joint</left_joint>
-      <!-- <right_joint>right_wheel_joint</right_joint>
-      <wheel_separation>0.2017</wheel_separation>
-      <wheel_radius>0.05</wheel_radius>
-      <odom_publish_frequency>1</odom_publish_frequency>
-      <topic>model/kitt/cmd_vel</topic>
+      <right_joint>right_wheel_joint</right_joint>
+      <!-- <topic>model/kitt/cmd_vel</topic>
       <odom_topic>model/kitt/odometry</odom_topic>
       <tf_topic>model/kitt/tf</tf_topic> -->
       <!-- <max_velocity> <max_acceleration> and <max_jerk> -->
