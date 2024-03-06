@@ -21,13 +21,13 @@ class md25_motor
   /// \param[in] _msg Double message
   public: void OnCmdVolt(const msgs::Double &_msg);
 
-  public: void OnTorqueMeasure(const msgs::Wrench &_msg);
-
   public: transport::Node::Publisher torquePublisher;
 
   public: transport::Node::Publisher jointVelocityPublisher;
 
   public: transport::Node::Publisher voltagePublisher;
+
+  public: transport::Node::Publisher currentPublisher;
 
   public: transport::Node::Publisher encoderPublisher;
 
@@ -35,30 +35,47 @@ class md25_motor
   public: Entity jointEntity;
   public: std::string jointName;
 
-  /// \brief Measured torque before the motor action
-  public: double measuredTorque=0.0;
-  public: std::mutex measuredTorqueMutex;
+  /// \brief Motor state.
+  public: enum MotorState {
+        DISABLED = 0,
+        ENABLED = 1,
+        NOT_AVAILABLE = 2
+    };
+  public: MotorState motorState = DISABLED;
 
-  /// \brief Commanded voltage
-  public: double motorVoltCmd = 0.01;
-  public: double prevMotorVolt = 0.0;
 
-  /// \brief mutex to protect motorVoltCmd
-  public: std::mutex motorVoltCmdMutex;
 
-  // encoder
+  /// \brief Unquantized motor voltage
+  public: double motorVoltUnquantized = 0.0;
+
+  /// \brief Commanded voltage input buffer
+  public: double motorVoltCmdBuffer = 0.0;
+
+  /// \brief mutex to protect motorVoltCmdBuffer
+  public: std::mutex motorVoltCmdBufferMutex;
+
+  /// \brief Quantized commanded motor voltage
+  public: double motorVoltCmdQuantized = 0.0;
+
+
+  // Encoder variables
   public: double prevJointPos = 0.0;
   public: int32_t encoderCount = 0;
 
 
-  /// \brief motor internal current
+  /// \brief Motor internal variables
   public: double internalCurrent = 0.0;
+  public: double internalOmegaPrev = 0.0;
+  public: double prevMotorVolt = 0.0;
+  
+  /// \brief Motor voltage
+  public: double motorVolt = 0.0;
 
-  /// \brief encoder
+  /// \brief Encoder
   public: void EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse);
 
-  /// \brief motor system
-  public: void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr);
+  /// \brief Motor system
+  public: void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr,const double &_dt);
 };
 
 class md25_pluginPrivate
@@ -71,10 +88,7 @@ class md25_pluginPrivate
 
   /// \brief Battery level (Not integrated with battery plugin yet)
   public: double batteryVoltage = 12.0; // Volts
-
   public: double motorNominalVoltage = 12.0; // Volts
-  public: double momentOfInertia = 0.000319554; // kgm^2
-  public: double armatureDampingRatio = 0.000931; // Nm/(rad/s)
   public: double electromotiveForceConstant = 0.539065; // Nm/A
   public: double electricResistance = 7.101; // Ohm
   public: double electricInductance = 0.0034; // Henry
@@ -82,15 +96,32 @@ class md25_pluginPrivate
   // transmission
   public: double gearRatio = 1.0;
 
-  // driver limitations
+
+  // Driver limitations
+
+  /// \brief Register size from 0 to max voltage
+  public: int registerSize = 127;
+
+  /// \brief Maximum voltage step change in 25ms
+  public: int maxUpdateSteps = 10;
+
   public: double voltageQuantizationStep; //Volts
-  public: double maxVoltageIncreasePerStep; //Volts
+
+  // Maximum allowed voltage step in a simulation iteration
+  public: double maxVoltageIncreasePerStep;
 
   // encoder
   // rad per pulse is calculated from sdf value of pulses per revolution
   public: double radPerPulse;
-  // Should be implemented in the future
-  // public: int stepsPublishingRate = 10;
+
+  // Encoder pulses per revolution
+  public: int encoderPulsesPerRev = 360;
+
+  // Encoder publishing rate [Hz]
+  public: int encoderRate = 10;
+
+  // Last time encoder was published (in simulation time)
+  public: std::chrono::_V2::steady_clock::duration prevEncoderUpdateTime = std::chrono::seconds(0);
 
   /// \brief Model interface
   public: Model model{kNullEntity};
@@ -99,9 +130,9 @@ class md25_pluginPrivate
   public: md25_motor leftMotor;
   public: md25_motor rightMotor;
 
-  public: void LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
+  public: int LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
   public: void AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
-  private: bool ValidateParameters();
+  private: int ValidateParameters();
 };
 
 class md25_plugin

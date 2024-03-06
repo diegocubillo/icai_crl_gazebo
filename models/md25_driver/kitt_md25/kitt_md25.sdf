@@ -12,10 +12,7 @@
       name="icai_crl_gazebo::MD25Plugin">
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>
-      <!-- <topic>model/kitt/cmd_vel</topic>
-      <odom_topic>model/kitt/odometry</odom_topic>
-      <tf_topic>model/kitt/tf</tf_topic> -->
-      <!-- <max_velocity> <max_acceleration> and <max_jerk> -->
+      <encoder_rate>10</encoder_rate>
     </plugin>
   </model>
 </sdf>
