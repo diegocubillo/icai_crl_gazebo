@@ -403,12 +403,11 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
 
     // Internal current calculated with a discrete mathematical model of the motor
     // Applying $i[k] = \frac{V[k] + V[k-1] - K_e (\omega [k] + \omega [k-1])-(R-\frac{2L}{T})\cdot i[k-1]}{(R+\frac{2L}{T})}$
-    this->internalCurrent = (this->motorVolt + this->prevMotorVolt + Km*(o0-oPrev) - (R - 2*L/_dt)*iPrev)/(R + 2*L/_dt);
+    this->internalCurrent = (this->motorVolt + this->prevMotorVolt - Km * (o0 + oPrev) - (R - 2*L/_dt) * iPrev) / (R + 2*L/_dt);
     
     // Torque in the output shaft
     double torque = Km * this->internalCurrent * _dataPtr->gearRatio;
-    ignmsg << "A current of " << this->internalCurrent << " with gear ratio " << _dataPtr->gearRatio << "results in a torque: " << torque << std::endl;
-
+    
     // Update internal variables storing previous step values
     this->internalOmegaPrev = o0;
     this->prevMotorVolt = motorVolt;
