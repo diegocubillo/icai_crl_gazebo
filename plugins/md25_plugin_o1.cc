@@ -1,4 +1,4 @@
-#include "md25_plugin.hh"
+#include "md25_plugin_o1.hh"
 
 #include <iostream>
 #include <string>
@@ -19,14 +19,14 @@ using namespace systems;
 
 
 
-int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
+int md25_plugin_o1Private::LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
 {
   // Load joint
   // Get mandatory params from SDF
   this->leftMotor.jointName = _sdf->Get<std::string>("left_joint");
   if (this->leftMotor.jointName.empty())
   {
-    ignerr << "md25_plugin found an empty left_joint parameter. "
+    ignerr << "md25_plugin_o1 found an empty left_joint parameter. "
            << "This joint will not be initialized.\n";
   }
   else
@@ -37,7 +37,7 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
     if (this->leftMotor.jointEntity == kNullEntity)
     {
       ignerr << "Left joint with name [" << this->leftMotor.jointName << "] not found. "
-      << "The md25_plugin may not control this joint.\n";
+      << "The md25_plugin_o1 may not control this joint.\n";
       this->leftMotor.motorState = md25_motor::NOT_AVAILABLE;
     }
     else this->leftMotor.motorState = md25_motor::ENABLED;
@@ -46,7 +46,7 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
   this->rightMotor.jointName = _sdf->Get<std::string>("right_joint");
   if (this->rightMotor.jointName.empty())
   {
-    ignerr << "md25_plugin found an empty right_joint parameter. "
+    ignerr << "md25_plugin_o1 found an empty right_joint parameter. "
            << "This joint will not be initialized.\n";
   }
   else
@@ -57,7 +57,7 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
     if (this->rightMotor.jointEntity == kNullEntity)
     {
       ignerr << "Right joint with name [" << this->rightMotor.jointName << "] not found. "
-      << "The md25_plugin may not control this joint.\n";
+      << "The md25_plugin_o1 may not control this joint.\n";
       this->rightMotor.motorState = md25_motor::NOT_AVAILABLE;
     }
     else this->rightMotor.motorState = md25_motor::ENABLED;
@@ -67,7 +67,7 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
   if (this->leftMotor.motorState == md25_motor::DISABLED &&
       this->rightMotor.motorState == md25_motor::DISABLED)
   {
-    ignerr << "No valid joints found. The md25_plugin will not be initialized.\n";
+    ignerr << "No valid joints found. The md25_plugin_o1 will not be initialized.\n";
     return -1;
   }
 
@@ -133,7 +133,7 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
   return this->ValidateParameters();
 }
 
-void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
+void md25_plugin_o1Private::AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
 {
   // Advertise publishers and subscribe to voltage commands if motors are not disabled
   if (this->leftMotor.motorState != md25_motor::DISABLED)
@@ -168,22 +168,28 @@ void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Elemen
       }
     }
     this->node.Subscribe(voltageSubscriberTopic, &md25_motor::OnCmdVolt, &(this->leftMotor));
+    ignmsg << "Subscribed to topic [" << voltageSubscriberTopic << "]\n";
 
     // Advertise publishers
     this->leftMotor.torquePublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_output_torque"); 
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_output_torque]\n";
 
     this->leftMotor.jointVelocityPublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/joint_velocity"); 
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/joint_velocity]\n";
 
     this->leftMotor.voltagePublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_voltage");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_voltage]\n";
 
     this->leftMotor.currentPublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_current");  
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_current]\n";
 
     this->leftMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_encoder");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_encoder]\n";
     left_motor_not_advertise: ;
   }
 
@@ -219,27 +225,33 @@ void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Elemen
       }
     }
     this->node.Subscribe(voltageSubscriberTopic, &md25_motor::OnCmdVolt, &(this->rightMotor));
+    ignmsg << "Subscribed to topic [" << voltageSubscriberTopic << "]\n";
 
     // Advertise publishers
     this->rightMotor.torquePublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_output_torque");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_output_torque]\n";
 
     this->rightMotor.jointVelocityPublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/joint_velocity");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/joint_velocity]\n";
 
     this->rightMotor.voltagePublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_voltage");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_voltage]\n";
 
     this->rightMotor.currentPublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_current");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_current]\n";
 
     this->rightMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_encoder");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_encoder]\n";
     right_motor_not_advertise: ;
   }
 }
 
-int md25_pluginPrivate::ValidateParameters() {
+int md25_plugin_o1Private::ValidateParameters() {
     const double& L = this->electricInductance;
     const double& R = this->electricResistance;
     const double& Km = this->electromotiveForceConstant;
@@ -266,15 +278,15 @@ int md25_pluginPrivate::ValidateParameters() {
 }
 
 
-md25_plugin::md25_plugin(): dataPtr(std::make_unique<md25_pluginPrivate>())
+md25_plugin_o1::md25_plugin_o1(): dataPtr(std::make_unique<md25_plugin_o1Private>())
 {
 }
 
-md25_plugin::~md25_plugin()
+md25_plugin_o1::~md25_plugin_o1()
 {
 }
 
-void md25_plugin::Configure(const Entity &_entity,
+void md25_plugin_o1::Configure(const Entity &_entity,
                            const std::shared_ptr<const sdf::Element> &_sdf,
                            EntityComponentManager &_ecm,
                            EventManager &/*_eventMgr*/)
@@ -283,7 +295,7 @@ void md25_plugin::Configure(const Entity &_entity,
   this->dataPtr->model = Model(_entity);
   if (!this->dataPtr->model.Valid(_ecm))
   {
-    ignerr << "md25_plugin should be attached to a model entity. "
+    ignerr << "md25_plugin_o1 should be attached to a model entity. "
            << "Failed to initialize.\n";
     return;
   }
@@ -294,7 +306,7 @@ void md25_plugin::Configure(const Entity &_entity,
   }
 }
 
-void md25_plugin::PreUpdate(const UpdateInfo &_info,
+void md25_plugin_o1::PreUpdate(const UpdateInfo &_info,
     EntityComponentManager &_ecm)
 {
   // \TODO(anyone) Support rewind
@@ -312,6 +324,7 @@ void md25_plugin::PreUpdate(const UpdateInfo &_info,
   if (_info.simTime - this->dataPtr->prevEncoderUpdateTime >= std::chrono::duration<double>(1.0/this->dataPtr->encoderRate))
   {
     this->dataPtr->prevEncoderUpdateTime = _info.simTime;
+    // Update encoder just if the motor is enabled
     if (this->dataPtr->leftMotor.motorState != md25_motor::DISABLED)
       this->dataPtr->leftMotor.EncoderSystem(_info, _ecm, this->dataPtr->radPerPulse);
     if (this->dataPtr->rightMotor.motorState != md25_motor::DISABLED)
@@ -319,14 +332,16 @@ void md25_plugin::PreUpdate(const UpdateInfo &_info,
   }
 
   // Calculate driver's voltage step (if battery voltage changes, this value should be 
-  // updated in the subscriber callback)
+  // updated in the subscriber callback, and using a mutex)
   dataPtr->voltageQuantizationStep = dataPtr->batteryVoltage / dataPtr->registerSize;
 
   // Simulation sampling time in seconds
   double dt = (double)_info.dt.count()/1000000000.0;
 
   // Calculate maximum allowed voltage step for current sampling time
-  dataPtr->maxVoltageIncreasePerStep = dataPtr->maxUpdateSteps * dataPtr->voltageQuantizationStep*dt/0.025;
+  dataPtr->maxVoltageIncreasePerIter = dataPtr->maxUpdateSteps * dataPtr->voltageQuantizationStep*dt/0.025;
+
+  ignmsg << "Max voltage step in each iteration: " << dataPtr->maxVoltageIncreasePerIter << " V\n";
 
   // Update motor
   if (this->dataPtr->leftMotor.motorState != md25_motor::DISABLED)
@@ -336,7 +351,7 @@ void md25_plugin::PreUpdate(const UpdateInfo &_info,
 }
 
 
-void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr, const double &_dt)
+void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_plugin_o1Private* _dataPtr, const double &_dt)
 {
   // Create joint velocity component if one doesn't exist
   auto jointVelComp =
@@ -360,11 +375,11 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
   this->motorVoltCmdQuantized = _dataPtr->voltageQuantizationStep*std::trunc(this->motorVoltCmdQuantized/_dataPtr->voltageQuantizationStep);
 
   // Apply upper and lower voltage step limits
-  if (abs(this->motorVoltCmdQuantized - this->motorVoltUnquantized) > _dataPtr->maxVoltageIncreasePerStep)
+  if (abs(this->motorVoltCmdQuantized - this->motorVoltUnquantized) > _dataPtr->maxVoltageIncreasePerIter)
   {
     (this->motorVoltCmdQuantized > this->motorVoltUnquantized) ?
-    this->motorVoltUnquantized += _dataPtr->maxVoltageIncreasePerStep :
-    this->motorVoltUnquantized -= _dataPtr->maxVoltageIncreasePerStep;
+    this->motorVoltUnquantized += _dataPtr->maxVoltageIncreasePerIter :
+    this->motorVoltUnquantized -= _dataPtr->maxVoltageIncreasePerIter;
   }
   else this->motorVoltUnquantized = this->motorVoltCmdQuantized;
 
@@ -388,6 +403,8 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     voltMsg.mutable_header()->mutable_stamp()->CopyFrom(
       convert<msgs::Time>(_info.simTime));
     this->voltagePublisher.Publish(voltMsg);
+
+    ignmsg << "Motor voltage: " << this->motorVolt << " V\n";
 
 
     // Angular velocity in the rotor
@@ -433,7 +450,7 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     torqueMsg.mutable_header()->mutable_stamp()->CopyFrom(
       convert<msgs::Time>(_info.simTime));
     this->torquePublisher.Publish(torqueMsg);
-
+    
     // Publish motor current
     msgs::Double currentMsg;
     currentMsg.set_data(this->internalCurrent);
@@ -448,6 +465,7 @@ void md25_motor::OnCmdVolt(const msgs::Double &_msg)
 {
   std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
   this->motorVoltCmdBuffer = _msg.data();
+  ignmsg << "Motor in joint [" << this->jointName << "] received voltage command: " << this->motorVoltCmdBuffer << " V\n";
 }
 
 void md25_motor::EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse)
@@ -489,10 +507,10 @@ void md25_motor::EncoderSystem(const UpdateInfo &_info, EntityComponentManager &
 }
 
 
-IGNITION_ADD_PLUGIN(md25_plugin,
+IGNITION_ADD_PLUGIN(md25_plugin_o1,
     System,
-    md25_plugin::ISystemPreUpdate,
-    md25_plugin::ISystemConfigure)
+    md25_plugin_o1::ISystemPreUpdate,
+    md25_plugin_o1::ISystemConfigure)
 
-IGNITION_ADD_PLUGIN_ALIAS(md25_plugin,
-                          "icai_crl_gazebo::MD25Plugin")
+IGNITION_ADD_PLUGIN_ALIAS(md25_plugin_o1,
+                          "icai_crl_gazebo::MD25PluginO1")
