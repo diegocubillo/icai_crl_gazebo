@@ -12,7 +12,7 @@ inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace systems
 {
 
-class md25_pluginPrivate;
+class md25_plugin_o1Private;
 
 class md25_motor
 {
@@ -75,10 +75,10 @@ class md25_motor
   public: void EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse);
 
   /// \brief Motor system
-  public: void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr,const double &_dt);
+  public: void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_plugin_o1Private* _dataPtr,const double &_dt);
 };
 
-class md25_pluginPrivate
+class md25_plugin_o1Private
 {
   /// \brief Callback for voltage subscription
 
@@ -108,7 +108,7 @@ class md25_pluginPrivate
   public: double voltageQuantizationStep; //Volts
 
   // Maximum allowed voltage step in a simulation iteration
-  public: double maxVoltageIncreasePerStep;
+  public: double maxVoltageIncreasePerIter;
 
   // encoder
   // rad per pulse is calculated from sdf value of pulses per revolution
@@ -135,20 +135,20 @@ class md25_pluginPrivate
   private: int ValidateParameters();
 };
 
-class md25_plugin
+class md25_plugin_o1
     : public System, 
       public ISystemPreUpdate, 
       public ISystemConfigure
 {
-  public: md25_plugin();
-  public: ~md25_plugin() override;
+  public: md25_plugin_o1();
+  public: ~md25_plugin_o1() override;
   public: void PreUpdate(const UpdateInfo &_info,
               EntityComponentManager &_ecm) override;
   public: void Configure(const Entity &_entity,
                          const std::shared_ptr<const sdf::Element> &_sdf,
                          EntityComponentManager &_ecm,
                          EventManager &_eventMgr) override;
-  private: std::unique_ptr<md25_pluginPrivate> dataPtr;
+  private: std::unique_ptr<md25_plugin_o1Private> dataPtr;
 };
 
 }
