@@ -341,7 +341,7 @@ void md25_plugin_o1::PreUpdate(const UpdateInfo &_info,
   // Calculate maximum allowed voltage step for current sampling time
   dataPtr->maxVoltageIncreasePerIter = dataPtr->maxUpdateSteps * dataPtr->voltageQuantizationStep*dt/0.025;
 
-  ignmsg << "Max voltage step in each iteration: " << dataPtr->maxVoltageIncreasePerIter << " V\n";
+  // ignmsg << "Max voltage step in each iteration: " << dataPtr->maxVoltageIncreasePerIter << " V\n";
 
   // Update motor
   if (this->dataPtr->leftMotor.motorState != md25_motor::DISABLED)
@@ -404,7 +404,7 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
       convert<msgs::Time>(_info.simTime));
     this->voltagePublisher.Publish(voltMsg);
 
-    ignmsg << "Motor voltage: " << this->motorVolt << " V\n";
+    // ignmsg << "Motor voltage: " << this->motorVolt << " V\n";
 
 
     // Angular velocity in the rotor
@@ -429,8 +429,13 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     this->internalOmegaPrev = o0;
     this->prevMotorVolt = motorVolt;
 
+    //Prevents NaN values in JointForceCmd
+    if (std::isnan(torque))
+    {
+      // ignerr << "NaN torque calculated. Ignoring.\n";
+      return;
+    }
 
-    
     // Apply torque to the joint
     auto torqueComp =
         _ecm.Component<components::JointForceCmd>(this->jointEntity);
@@ -464,8 +469,9 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
 void md25_motor::OnCmdVolt(const msgs::Double &_msg)
 {
   std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
-  this->motorVoltCmdBuffer = _msg.data();
-  ignmsg << "Motor in joint [" << this->jointName << "] received voltage command: " << this->motorVoltCmdBuffer << " V\n";
+  if (std::isnan(this->motorVoltCmdBuffer)) ignerr << "Received NaN voltage command. Ignoring.\n";
+  else this->motorVoltCmdBuffer = _msg.data();
+  // ignmsg << "Motor in joint [" << this->jointName << "] received voltage command: " << this->motorVoltCmdBuffer << " V\n";
 }
 
 void md25_motor::EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse)
