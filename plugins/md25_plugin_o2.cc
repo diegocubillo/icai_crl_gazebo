@@ -379,7 +379,7 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
 
     // Get motor input voltage from register value to quantized voltage
     this->motorVolt = _dataPtr->voltageQuantizationStep*this->motorVoltQuantized;
-    ignmsg << "Motor voltage command in joint [" << this->jointName << "] updated: " << this->motorVolt << " V\n";
+    // ignmsg << "Motor voltage command in joint [" << this->jointName << "] updated: " << this->motorVolt << " V\n";
   }
 
   if (!jointVelComp->Data().empty())
@@ -399,7 +399,7 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
       convert<msgs::Time>(_info.simTime));
     this->voltagePublisher.Publish(voltMsg);
 
-    ignmsg << "Motor voltage: " << this->motorVolt << " V\n";
+    // ignmsg << "Motor voltage: " << this->motorVolt << " V\n";
 
 
     // Angular velocity in the rotor
@@ -459,8 +459,9 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
 void md25_motor::OnCmdVolt(const msgs::Double &_msg)
 {
   std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
-  this->motorVoltCmdBuffer = _msg.data();
-  ignmsg << "Motor in joint [" << this->jointName << "] received voltage command: " << this->motorVoltCmdBuffer << " V\n";
+  if (std::isnan(this->motorVoltCmdBuffer)) ignerr << "Received NaN voltage command. Ignoring.\n";
+  else this->motorVoltCmdBuffer = _msg.data();
+  // ignmsg << "Motor in joint [" << this->jointName << "] received voltage command: " << this->motorVoltCmdBuffer << " V\n";
 }
 
 void md25_motor::EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse)
