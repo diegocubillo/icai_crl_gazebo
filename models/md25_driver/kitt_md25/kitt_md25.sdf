@@ -12,7 +12,6 @@
       name="icai_crl_gazebo::MD25Plugin">
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>
-      <encoder_rate>10</encoder_rate>
     </plugin>
   </model>
 </sdf>

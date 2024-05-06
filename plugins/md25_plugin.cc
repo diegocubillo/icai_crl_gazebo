@@ -1,4 +1,4 @@
-#include "md25_plugin_o1.hh"
+#include "md25_plugin.hh"
 
 #include <iostream>
 #include <string>
@@ -19,14 +19,14 @@ using namespace systems;
 
 
 
-int md25_plugin_o1Private::LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
+int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
 {
   // Load joint
   // Get mandatory params from SDF
   this->leftMotor.jointName = _sdf->Get<std::string>("left_joint");
   if (this->leftMotor.jointName.empty())
   {
-    ignerr << "md25_plugin_o1 found an empty left_joint parameter. "
+    ignerr << "md25_plugin found an empty left_joint parameter. "
            << "This joint will not be initialized.\n";
   }
   else
@@ -37,7 +37,7 @@ int md25_plugin_o1Private::LoadMotorConfig(const std::shared_ptr<const sdf::Elem
     if (this->leftMotor.jointEntity == kNullEntity)
     {
       ignerr << "Left joint with name [" << this->leftMotor.jointName << "] not found. "
-      << "The md25_plugin_o1 may not control this joint.\n";
+      << "The md25_plugin may not control this joint.\n";
       this->leftMotor.motorState = md25_motor::NOT_AVAILABLE;
     }
     else this->leftMotor.motorState = md25_motor::ENABLED;
@@ -46,7 +46,7 @@ int md25_plugin_o1Private::LoadMotorConfig(const std::shared_ptr<const sdf::Elem
   this->rightMotor.jointName = _sdf->Get<std::string>("right_joint");
   if (this->rightMotor.jointName.empty())
   {
-    ignerr << "md25_plugin_o1 found an empty right_joint parameter. "
+    ignerr << "md25_plugin found an empty right_joint parameter. "
            << "This joint will not be initialized.\n";
   }
   else
@@ -57,7 +57,7 @@ int md25_plugin_o1Private::LoadMotorConfig(const std::shared_ptr<const sdf::Elem
     if (this->rightMotor.jointEntity == kNullEntity)
     {
       ignerr << "Right joint with name [" << this->rightMotor.jointName << "] not found. "
-      << "The md25_plugin_o1 may not control this joint.\n";
+      << "The md25_plugin may not control this joint.\n";
       this->rightMotor.motorState = md25_motor::NOT_AVAILABLE;
     }
     else this->rightMotor.motorState = md25_motor::ENABLED;
@@ -67,18 +67,11 @@ int md25_plugin_o1Private::LoadMotorConfig(const std::shared_ptr<const sdf::Elem
   if (this->leftMotor.motorState == md25_motor::DISABLED &&
       this->rightMotor.motorState == md25_motor::DISABLED)
   {
-    ignerr << "No valid joints found. The md25_plugin_o1 will not be initialized.\n";
+    ignerr << "No valid joints found. The md25_plugin will not be initialized.\n";
     return -1;
   }
 
   // Check default values override
-  if (_sdf->HasElement("motor_nominal_voltage"))
-  {
-    this->motorNominalVoltage = _sdf->Get<double>("motor_nominal_voltage");
-    ignmsg << "Motor nominal voltage initialized to ["
-           << this->motorNominalVoltage << " Volt]\n";
-  }
-
   if (_sdf->HasElement("electromotive_force_constant"))
   {
     this->electromotiveForceConstant = _sdf->Get<double>("electromotive_force_constant");
@@ -121,19 +114,41 @@ int md25_plugin_o1Private::LoadMotorConfig(const std::shared_ptr<const sdf::Elem
            << encoderRate << "]\n";
   }
 
+  if (_sdf->HasElement("max_update_steps"))
+  {
+    maxUpdateSteps = _sdf->Get<int>("max_update_steps");
+    ignmsg << "Max register update steps initialized to ["
+           << maxUpdateSteps << "]\n";
+  }
+
+  if (_sdf->HasElement("performance_mode"))
+  {
+    performanceMode = _sdf->Get<bool>("performance_mode");
+    ignmsg << "Performance mode initialized to ["
+           << performanceMode << "]\n";
+  }
+
+  if (_sdf->HasElement("voltage_update_period"))
+  {
+    voltageUpdatePeriod = _sdf->Get<int>("voltage_update_period");
+    ignmsg << "Voltage update period set to ["
+           << voltageUpdatePeriod << "] milliseconds (only if performance mode is disabled).\n";
+  }
+
   // Calculate encoder's rads per pulse
-  if (this->encoderPulsesPerRev<=0)
+  if (this->encoderPulsesPerRev <= 0)
   {
     ignwarn << "Incorrect encoder pulses per revolution: it must be positive and non zero!\n";
   }
-  else  this->radPerPulse = 2.0*3.1415926/(double)this->encoderPulsesPerRev;
+  else
+    this->radPerPulse = 2.0 * 3.1415926 / (double)this->encoderPulsesPerRev;
   
   // Check parameters
   
   return this->ValidateParameters();
 }
 
-void md25_plugin_o1Private::AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
+void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
 {
   // Advertise publishers and subscribe to voltage commands if motors are not disabled
   if (this->leftMotor.motorState != md25_motor::DISABLED)
@@ -251,7 +266,7 @@ void md25_plugin_o1Private::AdvertiseTopics(const std::shared_ptr<const sdf::Ele
   }
 }
 
-int md25_plugin_o1Private::ValidateParameters() {
+int md25_pluginPrivate::ValidateParameters() {
     const double& L = this->electricInductance;
     const double& R = this->electricResistance;
     const double& Km = this->electromotiveForceConstant;
@@ -278,24 +293,21 @@ int md25_plugin_o1Private::ValidateParameters() {
 }
 
 
-md25_plugin_o1::md25_plugin_o1(): dataPtr(std::make_unique<md25_plugin_o1Private>())
+md25_plugin::md25_plugin(): dataPtr(std::make_unique<md25_pluginPrivate>())
 {
 }
 
-md25_plugin_o1::~md25_plugin_o1()
+md25_plugin::~md25_plugin()
 {
 }
 
-void md25_plugin_o1::Configure(const Entity &_entity,
-                           const std::shared_ptr<const sdf::Element> &_sdf,
-                           EntityComponentManager &_ecm,
-                           EventManager &/*_eventMgr*/)
+void md25_plugin::Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm, EventManager &/*_eventMgr*/)
 {
     // Check that the plugin is attached to a model
   this->dataPtr->model = Model(_entity);
   if (!this->dataPtr->model.Valid(_ecm))
   {
-    ignerr << "md25_plugin_o1 should be attached to a model entity. "
+    ignerr << "md25_plugin should be attached to a model entity. "
            << "Failed to initialize.\n";
     return;
   }
@@ -306,8 +318,7 @@ void md25_plugin_o1::Configure(const Entity &_entity,
   }
 }
 
-void md25_plugin_o1::PreUpdate(const UpdateInfo &_info,
-    EntityComponentManager &_ecm)
+void md25_plugin::PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm)
 {
   // \TODO(anyone) Support rewind
   if (_info.dt < std::chrono::steady_clock::duration::zero())
@@ -320,11 +331,20 @@ void md25_plugin_o1::PreUpdate(const UpdateInfo &_info,
   if(_info.paused || (dataPtr->leftMotor.motorState == md25_motor::DISABLED && dataPtr->rightMotor.motorState == md25_motor::DISABLED))
     return;
   
+  // Warn about md25 performance if dt != 1ms 
+  static bool performanceWarning = false;
+  if (dataPtr->performanceMode && _info.dt != std::chrono::milliseconds(1) && !performanceWarning)
+  {
+    performanceWarning = true;
+    ignwarn << "Detected simulation step ["
+        << std::chrono::duration_cast<std::chrono::milliseconds>(_info.dt).count()
+        << "ms]. MD25 plugin works best at divisors of 25ms. If that's not the case, consider disabling performance mode.\n";
+  }
+  
   // Call encoder system at a fixed rate
   if (_info.simTime - this->dataPtr->prevEncoderUpdateTime >= std::chrono::duration<double>(1.0/this->dataPtr->encoderRate))
   {
     this->dataPtr->prevEncoderUpdateTime = _info.simTime;
-    // Update encoder just if the motor is enabled
     if (this->dataPtr->leftMotor.motorState != md25_motor::DISABLED)
       this->dataPtr->leftMotor.EncoderSystem(_info, _ecm, this->dataPtr->radPerPulse);
     if (this->dataPtr->rightMotor.motorState != md25_motor::DISABLED)
@@ -332,16 +352,15 @@ void md25_plugin_o1::PreUpdate(const UpdateInfo &_info,
   }
 
   // Calculate driver's voltage step (if battery voltage changes, this value should be 
-  // updated in the subscriber callback, and using a mutex)
+  // updated in the subscriber callback)
   dataPtr->voltageQuantizationStep = dataPtr->batteryVoltage / dataPtr->registerSize;
 
   // Simulation sampling time in seconds
   double dt = (double)_info.dt.count()/1000000000.0;
 
   // Calculate maximum allowed voltage step for current sampling time
-  dataPtr->maxVoltageIncreasePerIter = dataPtr->maxUpdateSteps * dataPtr->voltageQuantizationStep*dt/0.025;
-
-  // ignmsg << "Max voltage step in each iteration: " << dataPtr->maxVoltageIncreasePerIter << " V\n";
+  if(!dataPtr->performanceMode)
+    dataPtr->maxVoltageIncreasePerStep = dataPtr->maxUpdateSteps * dataPtr->voltageQuantizationStep*dt*dataPtr->voltageUpdatePeriod/0.025;
 
   // Update motor
   if (this->dataPtr->leftMotor.motorState != md25_motor::DISABLED)
@@ -351,7 +370,7 @@ void md25_plugin_o1::PreUpdate(const UpdateInfo &_info,
 }
 
 
-void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_plugin_o1Private* _dataPtr, const double &_dt)
+void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr, const double &_dt)
 {
   // Create joint velocity component if one doesn't exist
   auto jointVelComp =
@@ -364,28 +383,54 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
   if (jointVelComp == nullptr)
     return;
   
-  
-  // Quantize and limit motor voltage command
+  if (_info.simTime - this->prevVoltUpdateTime >= std::chrono::milliseconds(_dataPtr->voltageUpdatePeriod))
   {
-    std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
-    this->motorVoltCmdQuantized = std::clamp(this->motorVoltCmdBuffer,
-                  -1*_dataPtr->batteryVoltage, _dataPtr->batteryVoltage);
+    this->prevVoltUpdateTime = _info.simTime;
+    
+    if (_dataPtr->performanceMode){
+      // Quantize and limit motor voltage command
+      {
+        std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
+        this->motorVoltCmdRegister = std::clamp(static_cast<int>(this->motorVoltCmdBuffer/_dataPtr->voltageQuantizationStep),
+                      -1*_dataPtr->registerSize, _dataPtr->registerSize);
+      }
+
+      // Apply upper and lower voltage step limits
+      if (abs(this->motorVoltCmdRegister - this->motorVoltRegister) > _dataPtr->maxUpdateSteps)
+      {
+        (this->motorVoltCmdRegister > this->motorVoltRegister) ?
+        this->motorVoltRegister += _dataPtr->maxUpdateSteps :
+        this->motorVoltRegister -= _dataPtr->maxUpdateSteps;
+      }
+      else this->motorVoltRegister = this->motorVoltCmdRegister;
+
+      // Get motor input voltage from register value to quantized voltage
+      this->motorVolt = _dataPtr->voltageQuantizationStep*this->motorVoltRegister;
+      // ignmsg << "Motor voltage command in joint [" << this->jointName << "] updated: " << this->motorVolt << " V\n";
+    }else{
+      // Quantize and limit motor voltage command
+    {
+      std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
+      this->motorVoltCmdQuantized = std::clamp(this->motorVoltCmdBuffer,
+                    -1*_dataPtr->batteryVoltage, _dataPtr->batteryVoltage);
+    }
+
+    this->motorVoltCmdQuantized = _dataPtr->voltageQuantizationStep*std::trunc(this->motorVoltCmdQuantized/_dataPtr->voltageQuantizationStep);
+
+    // Apply upper and lower voltage step limits
+    if (abs(this->motorVoltCmdQuantized - this->motorVoltUnquantized) > _dataPtr->maxVoltageIncreasePerStep)
+    {
+      (this->motorVoltCmdQuantized > this->motorVoltUnquantized) ?
+      this->motorVoltUnquantized += _dataPtr->maxVoltageIncreasePerStep :
+      this->motorVoltUnquantized -= _dataPtr->maxVoltageIncreasePerStep;
+    }
+    else this->motorVoltUnquantized = this->motorVoltCmdQuantized;
+
+    // Quantization of motor input voltage
+    this->motorVolt = _dataPtr->voltageQuantizationStep*std::trunc(this->motorVoltUnquantized/_dataPtr->voltageQuantizationStep);
+    // ignmsg << "Motor voltage command in joint [" << this->jointName << "] updated: " << this->motorVolt << " V\n";
+    }
   }
-
-  this->motorVoltCmdQuantized = _dataPtr->voltageQuantizationStep*std::trunc(this->motorVoltCmdQuantized/_dataPtr->voltageQuantizationStep);
-
-  // Apply upper and lower voltage step limits
-  if (abs(this->motorVoltCmdQuantized - this->motorVoltUnquantized) > _dataPtr->maxVoltageIncreasePerIter)
-  {
-    (this->motorVoltCmdQuantized > this->motorVoltUnquantized) ?
-    this->motorVoltUnquantized += _dataPtr->maxVoltageIncreasePerIter :
-    this->motorVoltUnquantized -= _dataPtr->maxVoltageIncreasePerIter;
-  }
-  else this->motorVoltUnquantized = this->motorVoltCmdQuantized;
-
-  // Quantization of motor input voltage
-  this->motorVolt = _dataPtr->voltageQuantizationStep*std::trunc(this->motorVoltUnquantized/_dataPtr->voltageQuantizationStep);
-
 
   if (!jointVelComp->Data().empty())
   {
@@ -414,7 +459,7 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     const double& L = _dataPtr->electricInductance;
     const double& R = _dataPtr->electricResistance;
     const double& Km = _dataPtr->electromotiveForceConstant;
-    const double& oPrev = this->internalOmegaPrev;
+    const double& oPrev = this->prevInternalOmega;
     const double& iPrev = this->internalCurrent;
     const double& o0 = internalOmega;
 
@@ -426,16 +471,11 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     double torque = Km * this->internalCurrent * _dataPtr->gearRatio;
     
     // Update internal variables storing previous step values
-    this->internalOmegaPrev = o0;
+    this->prevInternalOmega = o0;
     this->prevMotorVolt = motorVolt;
 
-    //Prevents NaN values in JointForceCmd
-    if (std::isnan(torque))
-    {
-      // ignerr << "NaN torque calculated. Ignoring.\n";
-      return;
-    }
 
+    
     // Apply torque to the joint
     auto torqueComp =
         _ecm.Component<components::JointForceCmd>(this->jointEntity);
@@ -469,7 +509,7 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
 void md25_motor::OnCmdVolt(const msgs::Double &_msg)
 {
   std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
-  if (std::isnan(this->motorVoltCmdBuffer)) ignerr << "Received NaN voltage command. Ignoring.\n";
+  if (std::isnan(_msg.data())) ignerr << "Received NaN voltage command. Ignoring.\n";
   else this->motorVoltCmdBuffer = _msg.data();
   // ignmsg << "Motor in joint [" << this->jointName << "] received voltage command: " << this->motorVoltCmdBuffer << " V\n";
 }
@@ -513,10 +553,10 @@ void md25_motor::EncoderSystem(const UpdateInfo &_info, EntityComponentManager &
 }
 
 
-IGNITION_ADD_PLUGIN(md25_plugin_o1,
+IGNITION_ADD_PLUGIN(md25_plugin,
     System,
-    md25_plugin_o1::ISystemPreUpdate,
-    md25_plugin_o1::ISystemConfigure)
+    md25_plugin::ISystemPreUpdate,
+    md25_plugin::ISystemConfigure)
 
-IGNITION_ADD_PLUGIN_ALIAS(md25_plugin_o1,
-                          "icai_crl_gazebo::MD25PluginO1")
+IGNITION_ADD_PLUGIN_ALIAS(md25_plugin,
+                          "icai_crl_gazebo::MD25Plugin")
