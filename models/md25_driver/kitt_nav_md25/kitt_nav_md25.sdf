@@ -1,18 +1,17 @@
 <?xml version="1.0" ?>
 
 <sdf version="1.9">
-  <model name="kitt_nav_md25_o3" canonical_link="car_body">
+  <model name="kitt_nav_md25" canonical_link="car_body">
     <include merge="true">
       <uri>package://icai_crl_description/models/robots/kitt_nav</uri>
     </include>
 
     <!-- MD25 driver plugin -->
     <plugin
-      filename="md25_plugin_o3"
-      name="icai_crl_gazebo::MD25PluginO3">
+      filename="md25_plugin"
+      name="icai_crl_gazebo::MD25Plugin">
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>
-      <encoder_rate>100</encoder_rate>
     </plugin>
   </model>
 </sdf>
