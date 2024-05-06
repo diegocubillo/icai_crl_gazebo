@@ -173,23 +173,23 @@ void md25_plugin_o3Private::AdvertiseTopics(const std::shared_ptr<const sdf::Ele
     // Advertise publishers
     this->leftMotor.torquePublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_output_torque"); 
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_output_torque]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_output_torque]\n";
 
     this->leftMotor.jointVelocityPublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/joint_velocity"); 
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/joint_velocity]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/joint_velocity]\n";
 
     this->leftMotor.voltagePublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_voltage");
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_voltage]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_voltage]\n";
 
     this->leftMotor.currentPublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_current");  
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_current]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_current]\n";
 
     this->leftMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_encoder");
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_encoder]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_encoder]\n";
     left_motor_not_advertise: ;
   }
 
@@ -230,23 +230,23 @@ void md25_plugin_o3Private::AdvertiseTopics(const std::shared_ptr<const sdf::Ele
     // Advertise publishers
     this->rightMotor.torquePublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_output_torque");
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_output_torque]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_output_torque]\n";
 
     this->rightMotor.jointVelocityPublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/joint_velocity");
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/joint_velocity]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/joint_velocity]\n";
 
     this->rightMotor.voltagePublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_voltage");
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_voltage]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_voltage]\n";
 
     this->rightMotor.currentPublisher = this->node.Advertise<msgs::Double>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_current");
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_current]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_current]\n";
 
     this->rightMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_encoder");
-    ignmsg << "Advertised topic [/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_encoder]\n";
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_encoder]\n";
     right_motor_not_advertise: ;
   }
 }

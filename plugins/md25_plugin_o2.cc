@@ -364,21 +364,21 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     // Quantize and limit motor voltage command
     {
       std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
-      this->motorVoltCmdQuantized = std::clamp(static_cast<int>(this->motorVoltCmdBuffer/_dataPtr->voltageQuantizationStep),
+      this->motorVoltCmdRegister = std::clamp(static_cast<int>(this->motorVoltCmdBuffer/_dataPtr->voltageQuantizationStep),
                     -1*_dataPtr->registerSize, _dataPtr->registerSize);
     }
 
     // Apply upper and lower voltage step limits
-    if (abs(this->motorVoltCmdQuantized - this->motorVoltQuantized) > _dataPtr->maxUpdateSteps)
+    if (abs(this->motorVoltCmdRegister - this->motorVoltRegister) > _dataPtr->maxUpdateSteps)
     {
-      (this->motorVoltCmdQuantized > this->motorVoltQuantized) ?
-      this->motorVoltQuantized += _dataPtr->maxUpdateSteps :
-      this->motorVoltQuantized -= _dataPtr->maxUpdateSteps;
+      (this->motorVoltCmdRegister > this->motorVoltRegister) ?
+      this->motorVoltRegister += _dataPtr->maxUpdateSteps :
+      this->motorVoltRegister -= _dataPtr->maxUpdateSteps;
     }
-    else this->motorVoltQuantized = this->motorVoltCmdQuantized;
+    else this->motorVoltRegister = this->motorVoltCmdRegister;
 
     // Get motor input voltage from register value to quantized voltage
-    this->motorVolt = _dataPtr->voltageQuantizationStep*this->motorVoltQuantized;
+    this->motorVolt = _dataPtr->voltageQuantizationStep*this->motorVoltRegister;
     // ignmsg << "Motor voltage command in joint [" << this->jointName << "] updated: " << this->motorVolt << " V\n";
   }
 

@@ -45,8 +45,8 @@ class md25_motor
 
 
 
-  /// \brief Unquantized motor voltage
-  public: int motorVoltQuantized = 0;
+  /// \brief Motor voltage expresed in driver register
+  public: int motorVoltRegister = 0;
 
   /// \brief Commanded voltage input buffer
   public: double motorVoltCmdBuffer = 0.0;
@@ -54,8 +54,8 @@ class md25_motor
   /// \brief mutex to protect motorVoltCmdBuffer
   public: std::mutex motorVoltCmdBufferMutex;
 
-  /// \brief Quantized commanded motor voltage
-  public: int motorVoltCmdQuantized = 0;
+  /// \brief Objective register commanded for motor voltage
+  public: int motorVoltCmdRegister = 0;
 
 
   // Encoder variables
