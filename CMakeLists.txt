@@ -22,9 +22,9 @@ set(GZ_SIM_VER ${ignition-gazebo6_VERSION_MAJOR})
 # Following 'add_library' directive defines a library target named 'md25_plugin'.
 # The 'SHARED' keyword indicates that a shared library should be compiled, and
 # is followed by the list of source files for the target.
-add_library(md25_plugin_o1
+add_library(md25_plugin
   SHARED
-  plugins/md25_plugin_o1.cc
+  plugins/md25_plugin.cc
 )
 
 # Following 'target_include_directories' directive specifies 'include' as the
@@ -32,7 +32,7 @@ add_library(md25_plugin_o1
 # The 'PRIVATE' keyword specifies that this directive will populate the
 # INCLUDE_DIRECTORIES property for the 'md25_plugin' target.
 target_include_directories(
-  md25_plugin_o1 PRIVATE include
+  md25_plugin PRIVATE include
 )
 
 # Following 'target_link_libraries' directive specifies to use the 
@@ -41,33 +41,7 @@ target_include_directories(
 # automatically be included if the 'md25_plugin' target were to
 # be linked to anoter target. 
 # ${GZ_SIM_VER} is substituted by the value that is was set to above.
-target_link_libraries(md25_plugin_o1 PRIVATE
-  ignition-gazebo${GZ_SIM_VER}::ignition-gazebo${GZ_SIM_VER})
-
-
-add_library(md25_plugin_o2
-  SHARED
-  plugins/md25_plugin_o2.cc
-)
-
-target_include_directories(
-  md25_plugin_o2 PRIVATE include
-)
-
-target_link_libraries(md25_plugin_o2 PRIVATE
-  ignition-gazebo${GZ_SIM_VER}::ignition-gazebo${GZ_SIM_VER})
-
-
-add_library(md25_plugin_o3
-  SHARED
-  plugins/md25_plugin_o3.cc
-)
-
-target_include_directories(
-  md25_plugin_o3 PRIVATE include
-)
-
-target_link_libraries(md25_plugin_o3 PRIVATE
+target_link_libraries(md25_plugin PRIVATE
   ignition-gazebo${GZ_SIM_VER}::ignition-gazebo${GZ_SIM_VER})
 
 
@@ -76,7 +50,7 @@ target_link_libraries(md25_plugin_o3 PRIVATE
 # of the 'md25_plugin' and 'FullSystem' targets will be copied
 # to the subfolder 'lib/ros_gz_example_gazebo' of the install directory.
 install(
-  TARGETS md25_plugin_o1 md25_plugin_o2 md25_plugin_o3
+  TARGETS md25_plugin
   DESTINATION lib/${PROJECT_NAME}
 )
 
