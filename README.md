@@ -53,6 +53,12 @@ Kitt model with two cameras to generate a VR front view. These cameras are weigh
 Kitt model with a front camera to generate a FPV view. This camera is weightless and fixed to the original model.
 * `/model/kitt/fpv_camera` (gz.msgs.Image) Front camera image (640x480).
 
+### kitt_md25
+TODO Include models based on MD25 plugin.
+
+### Labeled models
+TODO enumerate names, explain variable `model_name` and mention jinja2.
+
 
 ## Plugins
 
