@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+
+<sdf version="1.9">
+  <model name="{{ model_name }}" canonical_link="car_body">
+    <include merge="true">
+      <uri>package://icai_crl_description/models/robots/kitt</uri>
+      <experimental:params>
+        <sensor element_id="car_body::imu_sensor" action="modify">
+          <topic>model/{{ model_name }}/imu</topic>
+        </sensor>
+        <sensor element_id="wall_follower::front_dist_sensor" action="modify">
+          <topic>model/{{ model_name }}/front_dist_sensor/scan</topic>
+        </sensor>
+        <sensor element_id="wall_follower::back_dist_sensor" action="modify">
+          <topic>model/{{ model_name }}/back_dist_sensor/scan</topic>
+        </sensor>
+      </experimental:params>
+    </include>
+    
+
+    <!-- MD25 driver plugin -->
+    <plugin
+      filename="md25_plugin"
+      name="icai_crl_gazebo::MD25Plugin">
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+    </plugin>
+  </model>
+</sdf>
