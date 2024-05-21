@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 
 <sdf version="1.9">
-  <model name="kitt_md25" canonical_link="car_body">
+  <model name="kitt" canonical_link="car_body">
     <include merge="true">
       <uri>package://icai_crl_description/models/robots/kitt</uri>
     </include>

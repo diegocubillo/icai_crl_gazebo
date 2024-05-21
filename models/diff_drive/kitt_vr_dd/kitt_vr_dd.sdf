@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 
 <sdf version="1.9">
-  <model name="kitt_vr_dd" canonical_link="car_body">
+  <model name="kitt" canonical_link="car_body">
     <include merge="true">
       <uri>package://icai_crl_description/models/robots/kitt</uri>
       <experimental:params>
@@ -58,9 +58,9 @@
       <wheel_separation>0.2017</wheel_separation>
       <wheel_radius>0.05</wheel_radius>
       <odom_publish_frequency>1</odom_publish_frequency>
-      <topic>model/kitt/cmd_vel</topic>
+      <!-- <topic>model/kitt/cmd_vel</topic>
       <odom_topic>model/kitt/odometry</odom_topic>
-      <tf_topic>model/kitt/tf</tf_topic>
+      <tf_topic>model/kitt/tf</tf_topic> -->
       <!-- <max_velocity> <max_acceleration> and <max_jerk> -->
     </plugin>
   </model>
