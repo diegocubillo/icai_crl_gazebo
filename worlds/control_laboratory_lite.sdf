@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+
+<sdf version="1.9">
+  <world name="control_laboratory">
+    <!-- Physics definition -->
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <!-- Physics plugin -->
+    <plugin
+      filename="libignition-gazebo-physics-system.so"
+      name="ignition::gazebo::systems::Physics">
+    </plugin>
+
+    <!-- Sensors plugin -->
+    <plugin
+      filename="ignition-gazebo-sensors-system"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <!-- IMU plugin -->
+    <plugin 
+      filename="libignition-gazebo-imu-system.so"
+      name="ignition::gazebo::systems::Imu">
+    </plugin>
+
+    <!-- Creating, moving and deleting models plugin -->
+    <plugin
+      filename="libignition-gazebo-user-commands-system.so"
+      name="ignition::gazebo::systems::UserCommands">
+    </plugin>
+
+    <!-- Shows the world scene -->
+    <plugin
+      filename="libignition-gazebo-scene-broadcaster-system.so"
+      name="ignition::gazebo::systems::SceneBroadcaster">
+    </plugin>
+
+    <!-- Laboratory model with no lights -->
+    <include>
+      <uri>package://icai_crl_description/models/environments/control_lab_lite</uri>
+    </include>
+  </world>
+</sdf>
