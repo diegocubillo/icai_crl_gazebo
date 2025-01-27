@@ -168,7 +168,7 @@ void md25_ros2_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::E
     }
 
     this->leftMotor.voltageSubscriber = this->node->create_subscription<std_msgs::msg::Float64>(
-      voltageSubscriberTopic, 10, std::bind(&md25_ros2_motor::OnCmdVolt, &this->leftMotor, std::placeholders::_1));
+      voltageSubscriberTopic, rclcpp::QoS(3).best_effort(), std::bind(&md25_ros2_motor::OnCmdVolt, &this->leftMotor, std::placeholders::_1));
     ignmsg << "Subscribed to topic [" << voltageSubscriberTopic << "]\n";
 
     // Advertise publishers
@@ -191,7 +191,7 @@ void md25_ros2_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::E
     }
 
     this->rightMotor.voltageSubscriber = this->node->create_subscription<std_msgs::msg::Float64>(
-      voltageSubscriberTopic, 10, std::bind(&md25_ros2_motor::OnCmdVolt, &this->rightMotor, std::placeholders::_1));
+      voltageSubscriberTopic, rclcpp::QoS(3).best_effort(), std::bind(&md25_ros2_motor::OnCmdVolt, &this->rightMotor, std::placeholders::_1));
     ignmsg << "Subscribed to topic [" << voltageSubscriberTopic << "]\n";
 
     // Advertise publishers
@@ -246,7 +246,7 @@ void md25_ros2_plugin::Configure(const Entity &_entity, const std::shared_ptr<co
     rclcpp::init(0, nullptr);
   }
 
-    // Check that the plugin is attached to a model
+  // Check that the plugin is attached to a model
   this->dataPtr->model = Model(_entity);
   if (!this->dataPtr->model.Valid(_ecm))
   {
