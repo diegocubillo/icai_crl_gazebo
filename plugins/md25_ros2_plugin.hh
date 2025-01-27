@@ -1,6 +1,8 @@
 #include <ignition/gazebo/System.hh>
 #include <ignition/gazebo/Model.hh>
-#include <ignition/transport/Node.hh>
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/int32.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include <memory>
 
 namespace ignition
@@ -12,24 +14,17 @@ inline namespace IGNITION_GAZEBO_VERSION_NAMESPACE {
 namespace systems
 {
 
-class md25_pluginPrivate;
+class md25_ros2_pluginPrivate;
 
-class md25_motor
+class md25_ros2_motor
 {
   /// \brief Callback for voltage command subscription
 
   /// \param[in] _msg Double message
-  public: void OnCmdVolt(const msgs::Double &_msg);
+  public: void OnCmdVolt(const std_msgs::msg::Float64 & msg);
 
-  public: transport::Node::Publisher torquePublisher;
-
-  public: transport::Node::Publisher jointVelocityPublisher;
-
-  public: transport::Node::Publisher voltagePublisher;
-
-  public: transport::Node::Publisher currentPublisher;
-
-  public: transport::Node::Publisher encoderPublisher;
+  public: rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr encoderPublisher;
+  public: rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr voltageSubscriber;
 
   /// \brief Joint Entity
   public: Entity jointEntity;
@@ -45,7 +40,7 @@ class md25_motor
 
 
 
-  /// \brief Motor voltage expresed in driver register
+  /// \brief Motor voltage expressed in driver register
   public: int motorVoltRegister = 0;
 
   /// \brief Motor voltage unquantized
@@ -81,18 +76,18 @@ class md25_motor
   public: double motorVolt = 0.0;
 
   /// \brief Encoder
-  public: void EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse);
+  public: void EncoderSystem(EntityComponentManager &_ecm, const double &_radPerPulse);
 
   /// \brief Motor system
-  public: void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr,const double &_dt);
+  public: void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_ros2_pluginPrivate* _dataPtr,const double &_dt);
 };
 
-class md25_pluginPrivate
+class md25_ros2_pluginPrivate
 {
   /// \brief Callback for voltage subscription
 
-  /// \brief Ignition communication node.
-  public: transport::Node node;
+  /// \brief ROS 2 communication node.
+  public: rclcpp::Node::SharedPtr node;
 
 
   /// \brief Battery level (Not integrated with battery plugin yet)
@@ -141,28 +136,28 @@ class md25_pluginPrivate
   public: Model model{kNullEntity};
 
   /// \brief Motors
-  public: md25_motor leftMotor;
-  public: md25_motor rightMotor;
+  public: md25_ros2_motor leftMotor;
+  public: md25_ros2_motor rightMotor;
 
   public: int LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
   public: void AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
   private: int ValidateParameters();
 };
 
-class md25_plugin
+class md25_ros2_plugin
     : public System, 
       public ISystemPreUpdate, 
       public ISystemConfigure
 {
-  public: md25_plugin();
-  public: ~md25_plugin() override;
+  public: md25_ros2_plugin();
+  public: ~md25_ros2_plugin() override;
   public: void PreUpdate(const UpdateInfo &_info,
               EntityComponentManager &_ecm) override;
   public: void Configure(const Entity &_entity,
                          const std::shared_ptr<const sdf::Element> &_sdf,
                          EntityComponentManager &_ecm,
                          EventManager &_eventMgr) override;
-  private: std::unique_ptr<md25_pluginPrivate> dataPtr;
+  private: std::unique_ptr<md25_ros2_pluginPrivate> dataPtr;
 };
 
 }

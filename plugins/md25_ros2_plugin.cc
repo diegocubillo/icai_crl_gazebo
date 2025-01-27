@@ -1,4 +1,4 @@
-#include "md25_plugin.hh"
+#include "md25_ros2_plugin.hh"
 
 #include <iostream>
 #include <string>
@@ -19,14 +19,14 @@ using namespace systems;
 
 
 
-int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
+int md25_ros2_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
 {
   // Load joint
   // Get mandatory params from SDF
   this->leftMotor.jointName = _sdf->Get<std::string>("left_joint");
   if (this->leftMotor.jointName.empty())
   {
-    ignerr << "md25_plugin found an empty left_joint parameter. "
+    ignerr << "md25_ros2_plugin found an empty left_joint parameter. "
            << "This joint will not be initialized.\n";
   }
   else
@@ -37,16 +37,16 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
     if (this->leftMotor.jointEntity == kNullEntity)
     {
       ignerr << "Left joint with name [" << this->leftMotor.jointName << "] not found. "
-      << "The md25_plugin may not control this joint.\n";
-      this->leftMotor.motorState = md25_motor::NOT_AVAILABLE;
+      << "The md25_ros2_plugin may not control this joint.\n";
+      this->leftMotor.motorState = md25_ros2_motor::NOT_AVAILABLE;
     }
-    else this->leftMotor.motorState = md25_motor::ENABLED;
+    else this->leftMotor.motorState = md25_ros2_motor::ENABLED;
   }
 
   this->rightMotor.jointName = _sdf->Get<std::string>("right_joint");
   if (this->rightMotor.jointName.empty())
   {
-    ignerr << "md25_plugin found an empty right_joint parameter. "
+    ignerr << "md25_ros2_plugin found an empty right_joint parameter. "
            << "This joint will not be initialized.\n";
   }
   else
@@ -57,17 +57,17 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
     if (this->rightMotor.jointEntity == kNullEntity)
     {
       ignerr << "Right joint with name [" << this->rightMotor.jointName << "] not found. "
-      << "The md25_plugin may not control this joint.\n";
-      this->rightMotor.motorState = md25_motor::NOT_AVAILABLE;
+      << "The md25_ros2_plugin may not control this joint.\n";
+      this->rightMotor.motorState = md25_ros2_motor::NOT_AVAILABLE;
     }
-    else this->rightMotor.motorState = md25_motor::ENABLED;
+    else this->rightMotor.motorState = md25_ros2_motor::ENABLED;
   }
 
   // return if both joints are disabled
-  if (this->leftMotor.motorState == md25_motor::DISABLED &&
-      this->rightMotor.motorState == md25_motor::DISABLED)
+  if (this->leftMotor.motorState == md25_ros2_motor::DISABLED &&
+      this->rightMotor.motorState == md25_ros2_motor::DISABLED)
   {
-    ignerr << "No valid joints found. The md25_plugin will not be initialized.\n";
+    ignerr << "No valid joints found. The md25_ros2_plugin will not be initialized.\n";
     return -1;
   }
 
@@ -148,125 +148,60 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
   return this->ValidateParameters();
 }
 
-void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
+void md25_ros2_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm)
 {
+  // Initialize ROS 2 node
+  this->node = rclcpp::Node::make_shared("md25_ros2_plugin");
+
   // Advertise publishers and subscribe to voltage commands if motors are not disabled
-  if (this->leftMotor.motorState != md25_motor::DISABLED)
+  if (this->leftMotor.motorState != md25_ros2_motor::DISABLED)
   {    
     // Subscribe to voltage commands
     std::string voltageSubscriberTopic;
     if (_sdf->HasElement("left_volt_cmd_topic"))
     {
-      voltageSubscriberTopic = transport::TopicUtils::AsValidTopic(
-          _sdf->Get<std::string>("left_volt_cmd_topic"));
-
-      if (voltageSubscriberTopic.empty())
-      {
-        ignerr << "Failed to create topic [" << _sdf->Get<std::string>("left_volt_cmd_topic")
-              << "]" << " for joint [" << this->leftMotor.jointName 
-              << "]\n";
-        this->leftMotor.motorState = md25_motor::DISABLED;
-        goto left_motor_not_advertise;
-      }
+      voltageSubscriberTopic = _sdf->Get<std::string>("left_volt_cmd_topic");
     }
     else
     {
-      voltageSubscriberTopic = transport::TopicUtils::AsValidTopic("/model/" +
-          this->model.Name(_ecm) + "/" + this->leftMotor.jointName +
-          "/motor_volt_cmd");
-      if (voltageSubscriberTopic.empty())
-      {
-        ignerr << "Failed to create topic for joint [" << this->leftMotor.jointName 
-              << "]\n";
-        this->leftMotor.motorState = md25_motor::DISABLED;
-        goto left_motor_not_advertise;
-      }
+      voltageSubscriberTopic = "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/cmd_volt";
     }
-    this->node.Subscribe(voltageSubscriberTopic, &md25_motor::OnCmdVolt, &(this->leftMotor));
+
+    this->leftMotor.voltageSubscriber = this->node->create_subscription<std_msgs::msg::Float64>(
+      voltageSubscriberTopic, 10, std::bind(&md25_ros2_motor::OnCmdVolt, &this->leftMotor, std::placeholders::_1));
     ignmsg << "Subscribed to topic [" << voltageSubscriberTopic << "]\n";
 
     // Advertise publishers
-    this->leftMotor.torquePublisher = this->node.Advertise<msgs::Double>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_output_torque"); 
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_output_torque]\n";
-
-    this->leftMotor.jointVelocityPublisher = this->node.Advertise<msgs::Double>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/joint_velocity"); 
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/joint_velocity]\n";
-
-    this->leftMotor.voltagePublisher = this->node.Advertise<msgs::Double>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_voltage");
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_voltage]\n";
-
-    this->leftMotor.currentPublisher = this->node.Advertise<msgs::Double>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_current");  
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_current]\n";
-
-    this->leftMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_encoder");
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_encoder]\n";
-    left_motor_not_advertise: ;
+    this->leftMotor.encoderPublisher = this->node->create_publisher<std_msgs::msg::Int32>(
+        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/encoder",10);
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/encoder]\n";
   }
 
-  if (this->rightMotor.motorState != md25_motor::DISABLED)
+  if (this->rightMotor.motorState != md25_ros2_motor::DISABLED)
   {
     // Subscribe to voltage commands
     std::string voltageSubscriberTopic;
     if (_sdf->HasElement("right_volt_cmd_topic"))
     {
-      voltageSubscriberTopic = transport::TopicUtils::AsValidTopic(
-          _sdf->Get<std::string>("right_volt_cmd_topic"));
-
-      if (voltageSubscriberTopic.empty())
-      {
-        ignerr << "Failed to create topic [" << _sdf->Get<std::string>("right_volt_cmd_topic")
-              << "]" << " for joint [" << this->rightMotor.jointName 
-              << "]\n";
-        this->rightMotor.motorState = md25_motor::DISABLED;
-        goto right_motor_not_advertise;
-      }
+      voltageSubscriberTopic = _sdf->Get<std::string>("right_volt_cmd_topic");
     }
     else
     {
-      voltageSubscriberTopic = transport::TopicUtils::AsValidTopic("/model/" +
-          this->model.Name(_ecm) + "/" + this->rightMotor.jointName +
-          "/motor_volt_cmd");
-      if (voltageSubscriberTopic.empty())
-      {
-        ignerr << "Failed to create topic for joint [" << this->rightMotor.jointName 
-              << "]\n";
-        this->rightMotor.motorState = md25_motor::DISABLED;
-        goto right_motor_not_advertise;
-      }
+      voltageSubscriberTopic = "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/cmd_volt";
     }
-    this->node.Subscribe(voltageSubscriberTopic, &md25_motor::OnCmdVolt, &(this->rightMotor));
+
+    this->rightMotor.voltageSubscriber = this->node->create_subscription<std_msgs::msg::Float64>(
+      voltageSubscriberTopic, 10, std::bind(&md25_ros2_motor::OnCmdVolt, &this->rightMotor, std::placeholders::_1));
     ignmsg << "Subscribed to topic [" << voltageSubscriberTopic << "]\n";
 
     // Advertise publishers
-    this->rightMotor.torquePublisher = this->node.Advertise<msgs::Double>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_output_torque");
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_output_torque]\n";
-
-    this->rightMotor.jointVelocityPublisher = this->node.Advertise<msgs::Double>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/joint_velocity");
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/joint_velocity]\n";
-
-    this->rightMotor.voltagePublisher = this->node.Advertise<msgs::Double>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_voltage");
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_voltage]\n";
-
-    this->rightMotor.currentPublisher = this->node.Advertise<msgs::Double>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_current");
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_current]\n";
-
-    this->rightMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_encoder");
-    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_encoder]\n";
-    right_motor_not_advertise: ;
+    this->rightMotor.encoderPublisher = this->node->create_publisher<std_msgs::msg::Int32>(
+        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/encoder",10);
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/encoder]\n";
   }
 }
 
-int md25_pluginPrivate::ValidateParameters() {
+int md25_ros2_pluginPrivate::ValidateParameters() {
     const double& L = this->electricInductance;
     const double& R = this->electricResistance;
     const double& Km = this->electromotiveForceConstant;
@@ -293,21 +228,29 @@ int md25_pluginPrivate::ValidateParameters() {
 }
 
 
-md25_plugin::md25_plugin(): dataPtr(std::make_unique<md25_pluginPrivate>())
+md25_ros2_plugin::md25_ros2_plugin(): dataPtr(std::make_unique<md25_ros2_pluginPrivate>())
 {
 }
 
-md25_plugin::~md25_plugin()
+md25_ros2_plugin::~md25_ros2_plugin()
 {
+  rclcpp::shutdown();
 }
 
-void md25_plugin::Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm, EventManager &/*_eventMgr*/)
+void md25_ros2_plugin::Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm, EventManager &/*_eventMgr*/)
 {
+  ignmsg << "MD25 plugin configuration\n";
+  // Initialize ROS 2 context
+  if (!rclcpp::ok())
+  {
+    rclcpp::init(0, nullptr);
+  }
+
     // Check that the plugin is attached to a model
   this->dataPtr->model = Model(_entity);
   if (!this->dataPtr->model.Valid(_ecm))
   {
-    ignerr << "md25_plugin should be attached to a model entity. "
+    ignerr << "md25_ros2_plugin should be attached to a model entity. "
            << "Failed to initialize.\n";
     return;
   }
@@ -318,7 +261,7 @@ void md25_plugin::Configure(const Entity &_entity, const std::shared_ptr<const s
   }
 }
 
-void md25_plugin::PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm)
+void md25_ros2_plugin::PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm)
 {
   // \TODO(anyone) Support rewind
   if (_info.dt < std::chrono::steady_clock::duration::zero())
@@ -328,7 +271,7 @@ void md25_plugin::PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ec
         << "s]. System may not work properly.\n";
   }
 
-  if(_info.paused || (dataPtr->leftMotor.motorState == md25_motor::DISABLED && dataPtr->rightMotor.motorState == md25_motor::DISABLED))
+  if(_info.paused || (dataPtr->leftMotor.motorState == md25_ros2_motor::DISABLED && dataPtr->rightMotor.motorState == md25_ros2_motor::DISABLED))
     return;
   
   // Warn about md25 performance if dt != 1ms 
@@ -345,10 +288,10 @@ void md25_plugin::PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ec
   if (_info.simTime - this->dataPtr->prevEncoderUpdateTime >= std::chrono::duration<double>(1.0/this->dataPtr->encoderRate))
   {
     this->dataPtr->prevEncoderUpdateTime = _info.simTime;
-    if (this->dataPtr->leftMotor.motorState != md25_motor::DISABLED)
-      this->dataPtr->leftMotor.EncoderSystem(_info, _ecm, this->dataPtr->radPerPulse);
-    if (this->dataPtr->rightMotor.motorState != md25_motor::DISABLED)
-      this->dataPtr->rightMotor.EncoderSystem(_info, _ecm, this->dataPtr->radPerPulse);
+    if (this->dataPtr->leftMotor.motorState != md25_ros2_motor::DISABLED)
+      this->dataPtr->leftMotor.EncoderSystem(_ecm, this->dataPtr->radPerPulse);
+    if (this->dataPtr->rightMotor.motorState != md25_ros2_motor::DISABLED)
+      this->dataPtr->rightMotor.EncoderSystem(_ecm, this->dataPtr->radPerPulse);
   }
 
   // Calculate driver's voltage step (if battery voltage changes, this value should be 
@@ -363,14 +306,14 @@ void md25_plugin::PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ec
     dataPtr->maxVoltageIncreasePerStep = dataPtr->maxUpdateSteps * dataPtr->voltageQuantizationStep*dt*dataPtr->voltageUpdatePeriod/0.025;
 
   // Update motor
-  if (this->dataPtr->leftMotor.motorState != md25_motor::DISABLED)
+  if (this->dataPtr->leftMotor.motorState != md25_ros2_motor::DISABLED)
     this->dataPtr->leftMotor.MotorSystem(_info, _ecm, this->dataPtr.get(), dt);
-  if (this->dataPtr->rightMotor.motorState != md25_motor::DISABLED)
+  if (this->dataPtr->rightMotor.motorState != md25_ros2_motor::DISABLED)
     this->dataPtr->rightMotor.MotorSystem(_info, _ecm, this->dataPtr.get(), dt);
 }
 
 
-void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr, const double &_dt)
+void md25_ros2_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_ros2_pluginPrivate* _dataPtr, const double &_dt)
 {
   // Create joint velocity component if one doesn't exist
   auto jointVelComp =
@@ -434,24 +377,6 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
 
   if (!jointVelComp->Data().empty())
   {
-    // Publish joint angular velocity
-    msgs::Double jointVelMsg;
-    jointVelMsg.set_data(jointVelComp->Data().at(0));
-    jointVelMsg.mutable_header()->mutable_stamp()->CopyFrom(
-      convert<msgs::Time>(_info.simTime));
-    this->jointVelocityPublisher.Publish(jointVelMsg);
-   
-
-    // Publish actual motor voltage input
-    msgs::Double voltMsg;
-    voltMsg.set_data(this->motorVolt);
-    voltMsg.mutable_header()->mutable_stamp()->CopyFrom(
-      convert<msgs::Time>(_info.simTime));
-    this->voltagePublisher.Publish(voltMsg);
-
-    // ignmsg << "Motor voltage: " << this->motorVolt << " V\n";
-
-
     // Angular velocity in the rotor
     double internalOmega = jointVelComp->Data().at(0) * _dataPtr->gearRatio;
     
@@ -488,33 +413,18 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     {
       torqueComp->Data()[0] = torque;
     }
-
-    // Publish motor output torque
-    msgs::Double torqueMsg;
-    torqueMsg.set_data(torque);
-    torqueMsg.mutable_header()->mutable_stamp()->CopyFrom(
-      convert<msgs::Time>(_info.simTime));
-    this->torquePublisher.Publish(torqueMsg);
-    
-    // Publish motor current
-    msgs::Double currentMsg;
-    currentMsg.set_data(this->internalCurrent);
-    currentMsg.mutable_header()->mutable_stamp()->CopyFrom(
-      convert<msgs::Time>(_info.simTime));
-    this->currentPublisher.Publish(currentMsg);
   }
 }
 
   //subscriber message reception functions
-void md25_motor::OnCmdVolt(const msgs::Double &_msg)
+void md25_ros2_motor::OnCmdVolt(const std_msgs::msg::Float64 & msg)
 {
   std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
-  if (std::isnan(_msg.data())) ignerr << "Received NaN voltage command. Ignoring.\n";
-  else this->motorVoltCmdBuffer = _msg.data();
-  // ignmsg << "Motor in joint [" << this->jointName << "] received voltage command: " << this->motorVoltCmdBuffer << " V\n";
+  if (std::isnan(msg.data)) ignerr << "Received NaN voltage command. Ignoring.\n";
+  else this->motorVoltCmdBuffer = msg.data;
 }
 
-void md25_motor::EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse)
+void md25_ros2_motor::EncoderSystem(EntityComponentManager &_ecm, const double &_radPerPulse)
 {
   // If the joint hasn't been identified yet, the plugin is disabled
   if (this->jointEntity == kNullEntity)
@@ -543,20 +453,18 @@ void md25_motor::EncoderSystem(const UpdateInfo &_info, EntityComponentManager &
     }
    
       
-    msgs::Int32 encoderMsg;
-    encoderMsg.set_data(this->encoderCount);
-    encoderMsg.mutable_header()->mutable_stamp()->CopyFrom(
-      convert<msgs::Time>(_info.simTime));
-    this->encoderPublisher.Publish(encoderMsg);
+    std_msgs::msg::Int32 encoderMsg;
+    encoderMsg.data = this->encoderCount;
+    this->encoderPublisher->publish(encoderMsg);
   }
   else ignerr << "No joint position read\n";
 }
 
 
-IGNITION_ADD_PLUGIN(md25_plugin,
+IGNITION_ADD_PLUGIN(md25_ros2_plugin,
     System,
-    md25_plugin::ISystemPreUpdate,
-    md25_plugin::ISystemConfigure)
+    md25_ros2_plugin::ISystemPreUpdate,
+    md25_ros2_plugin::ISystemConfigure)
 
-IGNITION_ADD_PLUGIN_ALIAS(md25_plugin,
+IGNITION_ADD_PLUGIN_ALIAS(md25_ros2_plugin,
                           "icai_crl_gazebo::MD25Plugin")
