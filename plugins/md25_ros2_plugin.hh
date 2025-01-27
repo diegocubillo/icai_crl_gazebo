@@ -88,6 +88,8 @@ class md25_ros2_pluginPrivate
 
   /// \brief ROS 2 communication node.
   public: rclcpp::Node::SharedPtr node;
+  /// \brief Thread for running the ROS 2 node.
+  public: std::thread spinThread;
 
 
   /// \brief Battery level (Not integrated with battery plugin yet)

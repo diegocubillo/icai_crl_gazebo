@@ -258,6 +258,10 @@ void md25_ros2_plugin::Configure(const Entity &_entity, const std::shared_ptr<co
   if (this->dataPtr->LoadMotorConfig(_sdf, _ecm) == 0)
   {
     this->dataPtr->AdvertiseTopics(_sdf, _ecm);
+    // Spin ROS 2 node
+    this->dataPtr->spinThread = std::thread([this]() {
+      rclcpp::spin(this->dataPtr->node);
+    });
   }
 }
 
@@ -412,11 +416,12 @@ void md25_ros2_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManage
     else
     {
       torqueComp->Data()[0] = torque;
+      // ignmsg << "Torque in joint [" << this->jointName << "] updated: " << torque << " Nm\n";
     }
   }
 }
 
-  //subscriber message reception functions
+  //subscriber message reception function
 void md25_ros2_motor::OnCmdVolt(const std_msgs::msg::Float64 & msg)
 {
   std::lock_guard<std::mutex> lock(this->motorVoltCmdBufferMutex);
