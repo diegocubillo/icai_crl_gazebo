@@ -173,7 +173,7 @@ void md25_ros2_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::E
 
     // Advertise publishers
     this->leftMotor.encoderPublisher = this->node->create_publisher<std_msgs::msg::Int32>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/encoder",10);
+        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/encoder",rclcpp::QoS(3).best_effort());
     ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/encoder]\n";
   }
 
@@ -196,7 +196,7 @@ void md25_ros2_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::E
 
     // Advertise publishers
     this->rightMotor.encoderPublisher = this->node->create_publisher<std_msgs::msg::Int32>(
-        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/encoder",10);
+        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/encoder",rclcpp::QoS(3).best_effort());
     ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/encoder]\n";
   }
 }
