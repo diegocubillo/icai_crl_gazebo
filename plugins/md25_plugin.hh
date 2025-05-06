@@ -97,7 +97,7 @@ class md25_pluginPrivate
 
   /// \brief Battery level (Not integrated with battery plugin yet)
   public: double batteryVoltage = 12.0; // Volts
-  public: double electromotiveForceConstant = 0.539065; // Nm/A
+  public: double electromotiveForceConstant = 0.539111; // Nm/A
   public: double electricResistance = 7.101; // Ohm
   public: double electricInductance = 0.0034; // Henry
 
@@ -129,7 +129,7 @@ class md25_pluginPrivate
   public: int encoderPulsesPerRev = 360;
 
   // Encoder publishing rate [Hz]
-  public: int encoderRate = 100;
+  public: int encoderRate = 200;
 
   // Last time encoder was published (in simulation time)
   public: std::chrono::_V2::steady_clock::duration prevEncoderUpdateTime = std::chrono::seconds(0);
