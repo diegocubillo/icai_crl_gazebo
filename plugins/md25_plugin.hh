@@ -43,6 +43,8 @@ class md25_motor
     };
   public: MotorState motorState = DISABLED;
 
+  /// \brief Whether the motor is at the left or right side of the robot
+  public: bool isLeftMotor = false;
 
 
   /// \brief Motor voltage expresed in driver register
@@ -100,6 +102,7 @@ class md25_pluginPrivate
   public: double electromotiveForceConstant = 0.539111; // Nm/A
   public: double electricResistance = 7.101; // Ohm
   public: double electricInductance = 0.0034; // Henry
+  public: double halfDifferentialVoltageDrop = -0.0104855/2.0; // Volts
 
   // transmission
   public: double gearRatio = 1.0;
