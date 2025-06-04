@@ -39,24 +39,21 @@ target_include_directories(
 # gz-sim library when linking the 'md25_plugin' target.
 # The 'PRIVATE' keyword stipulates that the gz-sim library will not
 # automatically be included if the 'md25_plugin' target were to
-# be linked to anoter target. 
+# be linked to another target. 
 # ${GZ_SIM_VER} is substituted by the value that is was set to above.
 target_link_libraries(md25_plugin PRIVATE
   ignition-gazebo${GZ_SIM_VER}::ignition-gazebo${GZ_SIM_VER})
 
-
-
 # Following 'install' directive ensures that the compiled libraries
-# of the 'md25_plugin' and 'FullSystem' targets will be copied
-# to the subfolder 'lib/ros_gz_example_gazebo' of the install directory.
+# of the 'md25_plugin' target will be copied to the subfolder 
+# 'lib/icai_crl_gazebo' of the install directory.
 install(
   TARGETS md25_plugin
   DESTINATION lib/${PROJECT_NAME}
 )
 
-
 # Following 'install' directive ensures that the 'worlds' subfolder
-# will be copied to the 'share/ros_gz_example_gazebo/worlds'
+# will be copied to the 'share/icai_crl_gazebo/worlds'
 # subfolder of the installation directory.
 install(
   DIRECTORY worlds/
@@ -68,6 +65,32 @@ install(
   DESTINATION share/${PROJECT_NAME}/models
 )
 
+# Documentation generation with Doxygen
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+  # Set input and output files
+  set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
+  set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+
+  # Request to configure the file
+  configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+  message(STATUS "Doxygen found: ${DOXYGEN_EXECUTABLE}")
+
+  # Create documentation target that actually builds the docs
+  add_custom_target(doc ALL
+    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Generating API documentation with Doxygen"
+    VERBATIM)
+
+  # Install documentation only if the target directory exists
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen_docs/html/
+          DESTINATION share/${PROJECT_NAME}/doc
+          OPTIONAL
+          FILES_MATCHING PATTERN "*")
+else()
+  message(STATUS "Doxygen not found. Documentation will not be generated.")
+endif()
 
 # Following directives are used when testing.
 if(BUILD_TESTING)
@@ -81,7 +104,7 @@ endif()
 # a copyright and license is added to all source files
 
 # Following hooks are used to ensure that the correct environment variables
-# will be set by exectuting 'source install/setup.bash' after compilation.
+# will be set by executing 'source install/setup.bash' after compilation.
 # When using this template for your project, change the filenames of the
 # files in the 'hooks' folder, to correspond to your project name.
 ament_environment_hooks("${CMAKE_CURRENT_SOURCE_DIR}/hooks/${PROJECT_NAME}.dsv.in")

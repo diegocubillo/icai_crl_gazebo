@@ -1,3 +1,13 @@
+/// \file md25_plugin.hh
+/// \brief MD25 motor driver plugin for Ignition Gazebo
+///
+/// This plugin simulates the behavior of an MD25 dual motor driver board,
+/// providing realistic DC motor control with voltage quantization, current
+/// simulation, and encoder feedback.
+///
+/// \author Diego Cubillo
+/// \date 2025
+
 #include <ignition/gazebo/System.hh>
 #include <ignition/gazebo/Model.hh>
 #include <ignition/transport/Node.hh>
@@ -14,155 +24,203 @@ namespace systems
 
 class md25_pluginPrivate;
 
+/// \brief Individual motor controller class for MD25 plugin
+///
+/// This class represents a single DC motor with its associated control logic,
+/// including voltage quantization, current calculation, and encoder simulation.
 class md25_motor
 {
-  /// \brief Callback for voltage command subscription
-
-  /// \param[in] _msg Double message
-  public: void OnCmdVolt(const msgs::Double &_msg);
-
-  public: transport::Node::Publisher torquePublisher;
-
-  public: transport::Node::Publisher jointVelocityPublisher;
-
-  public: transport::Node::Publisher voltagePublisher;
-
-  public: transport::Node::Publisher currentPublisher;
-
-  public: transport::Node::Publisher encoderPublisher;
-
-  /// \brief Joint Entity
-  public: Entity jointEntity;
-  public: std::string jointName;
-
-  /// \brief Motor state.
-  public: enum MotorState {
-        DISABLED = 0,
-        ENABLED = 1,
-        NOT_AVAILABLE = 2
+  public:
+    /// \brief Motor operational states
+    enum MotorState {
+        DISABLED = 0,      ///< Motor is disabled/not configured
+        ENABLED = 1,       ///< Motor is enabled and operational
+        NOT_AVAILABLE = 2  ///< Motor joint not found in model
     };
-  public: MotorState motorState = DISABLED;
 
+    /// \brief Constructor
+    md25_motor() = default;
 
+    /// \brief Destructor
+    ~md25_motor() = default;
 
-  /// \brief Motor voltage expresed in driver register
-  public: int motorVoltRegister = 0;
+    /// \brief Callback for voltage command subscription
+    /// \param[in] _msg Double message containing voltage command in Volts
+    void OnCmdVolt(const msgs::Double &_msg);
 
-  /// \brief Motor voltage unquantized
-  public: double motorVoltUnquantized = 0.0;
+    /// \brief Updates encoder count and publishes encoder data
+    /// \param[in] _info Update information from simulation
+    /// \param[in] _ecm Entity Component Manager
+    /// \param[in] _radPerPulse Radians per encoder pulse
+    void EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse);
 
-  /// \brief Commanded voltage input buffer
-  public: double motorVoltCmdBuffer = 0.0;
+    /// \brief Main motor control system update
+    /// \param[in] _info Update information from simulation
+    /// \param[in] _ecm Entity Component Manager
+    /// \param[in] _dataPtr Pointer to plugin private data
+    /// \param[in] _dt Simulation time step in seconds
+    void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr, const double &_dt);
 
-  /// \brief mutex to protect motorVoltCmdBuffer
-  public: std::mutex motorVoltCmdBufferMutex;
+  public:
+    // Publishers for motor telemetry
+    transport::Node::Publisher torquePublisher;         ///< Publisher for motor output torque
+    transport::Node::Publisher jointVelocityPublisher;  ///< Publisher for joint velocity
+    transport::Node::Publisher voltagePublisher;        ///< Publisher for motor voltage
+    transport::Node::Publisher currentPublisher;        ///< Publisher for motor current
+    transport::Node::Publisher encoderPublisher;        ///< Publisher for encoder count
 
-  /// \brief Objective register commanded for motor voltage
-  public: int motorVoltCmdRegister = 0;
+    // Joint identification
+    Entity jointEntity;       ///< Entity ID of the controlled joint
+    std::string jointName;    ///< Name of the controlled joint
+    MotorState motorState = DISABLED;  ///< Current motor state
 
-  /// \brief Quantized commanded motor voltage
-  public: double motorVoltCmdQuantized = 0.0;
+  private:
+    // Voltage control variables
+    int motorVoltRegister = 0;           ///< Motor voltage in driver register units
+    double motorVoltUnquantized = 0.0;   ///< Unquantized motor voltage for non-performance mode
+    double motorVoltCmdBuffer = 0.0;     ///< Commanded voltage input buffer
+    std::mutex motorVoltCmdBufferMutex;  ///< Mutex to protect motorVoltCmdBuffer
+    int motorVoltCmdRegister = 0;        ///< Target register value for motor voltage
+    double motorVoltCmdQuantized = 0.0;  ///< Quantized commanded motor voltage
+    double motorVolt = 0.0;              ///< Current motor voltage
 
+    // Encoder variables
+    double prevJointPos = 0.0;  ///< Previous joint position for encoder calculation
+    int32_t encoderCount = 0;   ///< Current encoder count
 
-  // Encoder variables
-  public: double prevJointPos = 0.0;
-  public: int32_t encoderCount = 0;
+    // Timing control
+    std::chrono::_V2::steady_clock::duration prevVoltUpdateTime = std::chrono::seconds(0);  ///< Last voltage update time
 
-  // Last time voltage was changed (in simulation time)
-  public: std::chrono::_V2::steady_clock::duration prevVoltUpdateTime = std::chrono::seconds(0);
-
-
-  /// \brief Motor internal variables
-  public: double internalCurrent = 0.0;
-  public: double prevInternalOmega = 0.0;
-  public: double prevMotorVolt = 0.0;
-  
-  /// \brief Motor voltage
-  public: double motorVolt = 0.0;
-
-  /// \brief Encoder
-  public: void EncoderSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, const double &_radPerPulse);
-
-  /// \brief Motor system
-  public: void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr,const double &_dt);
+    // Motor internal state variables
+    double internalCurrent = 0.0;      ///< Internal motor current (A)
+    double prevInternalOmega = 0.0;    ///< Previous internal angular velocity (rad/s)
+    double prevMotorVolt = 0.0;        ///< Previous motor voltage for discrete model
 };
 
+/// \brief Private data class for MD25 plugin
+///
+/// Contains all configuration parameters and shared data for the MD25 plugin.
 class md25_pluginPrivate
 {
-  /// \brief Callback for voltage subscription
+  public:
+    /// \brief Constructor
+    md25_pluginPrivate() = default;
 
-  /// \brief Ignition communication node.
-  public: transport::Node node;
+    /// \brief Load motor configuration from SDF
+    /// \param[in] _sdf SDF element containing plugin configuration
+    /// \param[in] _ecm Entity Component Manager
+    /// \return 0 on success, -1 on failure
+    int LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
 
+    /// \brief Advertise topics for motor communication
+    /// \param[in] _sdf SDF element containing plugin configuration
+    /// \param[in] _ecm Entity Component Manager
+    void AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
 
-  /// \brief Battery level (Not integrated with battery plugin yet)
-  public: double batteryVoltage = 12.0; // Volts
-  public: double electromotiveForceConstant = 0.539111; // Nm/A
-  public: double electricResistance = 7.101; // Ohm
-  public: double electricInductance = 0.0034; // Henry
+  public:
+    // Communication
+    transport::Node node;  ///< Ignition transport communication node
 
-  // transmission
-  public: double gearRatio = 1.0;
+    // Motor instances
+    md25_motor leftMotor;   ///< Left motor controller
+    md25_motor rightMotor;  ///< Right motor controller
 
+    // Physical parameters
+    double batteryVoltage = 12.0;              ///< Battery voltage (V) - not integrated with battery plugin yet
+    double electromotiveForceConstant = 0.539111;  ///< EMF constant (Nm/A)
+    double electricResistance = 7.101;         ///< Electric resistance (Ohm)
+    double electricInductance = 0.0034;        ///< Electric inductance (Henry)
+    double gearRatio = 1.0;                    ///< Gear ratio (motor to output)
 
-  // Driver limitations
+    // Driver characteristics
+    int registerSize = 127;           ///< Register size from 0 to max voltage
+    int voltageUpdatePeriod = 25;     ///< Voltage update period (ms)
+    int maxUpdateSteps = 10;          ///< Maximum voltage step change in 25ms
+    double voltageQuantizationStep;   ///< Voltage quantization step (V)
+    double maxVoltageIncreasePerStep; ///< Maximum allowed voltage step in simulation iteration
 
-  /// \brief Register size from 0 to max voltage
-  public: int registerSize = 127;
+    // Encoder configuration
+    double radPerPulse;              ///< Radians per encoder pulse
+    int encoderPulsesPerRev = 360;   ///< Encoder pulses per revolution
+    int encoderRate = 200;           ///< Encoder publishing rate (Hz)
+    std::chrono::_V2::steady_clock::duration prevEncoderUpdateTime = std::chrono::seconds(0);  ///< Last encoder update time
 
-  /// \brief
-  public: int voltageUpdatePeriod = 25;
+    // Performance optimization
+    bool performanceMode = true;  ///< Use registers instead of voltage for better performance
 
-  /// \brief Maximum voltage step change in 25ms
-  public: int maxUpdateSteps = 10;
+    // Model interface
+    Model model{kNullEntity};  ///< Gazebo model interface
 
-  public: double voltageQuantizationStep; //Volts
-
-  // Maximum allowed voltage step in a simulation iteration
-  public: double maxVoltageIncreasePerStep;
-
-  // encoder
-  // rad per pulse is calculated from sdf value of pulses per revolution
-  public: double radPerPulse;
-
-  // Encoder pulses per revolution
-  public: int encoderPulsesPerRev = 360;
-
-  // Encoder publishing rate [Hz]
-  public: int encoderRate = 200;
-
-  // Last time encoder was published (in simulation time)
-  public: std::chrono::_V2::steady_clock::duration prevEncoderUpdateTime = std::chrono::seconds(0);
-
-  // Better performance using registers instead of voltage
-  public: bool performanceMode = true;
-
-  /// \brief Model interface
-  public: Model model{kNullEntity};
-
-  /// \brief Motors
-  public: md25_motor leftMotor;
-  public: md25_motor rightMotor;
-
-  public: int LoadMotorConfig(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
-  public: void AdvertiseTopics(const std::shared_ptr<const sdf::Element> &_sdf, EntityComponentManager &_ecm);
-  private: int ValidateParameters();
+  private:
+    /// \brief Validate plugin parameters
+    /// \return 0 on success, -1 on failure
+    int ValidateParameters();
 };
 
+/// \brief MD25 dual motor driver plugin for Ignition Gazebo
+///
+/// This plugin simulates the MD25 dual motor driver board, providing:
+/// - Realistic DC motor control with voltage quantization
+/// - Current simulation based on electrical motor model
+/// - Encoder feedback simulation
+/// - Configurable motor parameters and driver characteristics
+///
+/// ## SDF Parameters:
+/// - `left_joint`: Name of the left motor joint (required)
+/// - `right_joint`: Name of the right motor joint (required)
+/// - `electromotive_force_constant`: EMF constant in Nm/A (default: 0.539111)
+/// - `electric_resistance`: Motor resistance in Ohms (default: 7.101)
+/// - `electric_inductance`: Motor inductance in Henry (default: 0.0034)
+/// - `gear_ratio`: Gear ratio motor to output (default: 1.0)
+/// - `encoder_ppr`: Encoder pulses per revolution (default: 360)
+/// - `encoder_rate`: Encoder publishing rate in Hz (default: 200)
+/// - `max_update_steps`: Maximum register update steps (default: 10)
+/// - `performance_mode`: Enable performance mode (default: true)
+/// - `voltage_update_period`: Voltage update period in ms (default: 25)
+/// - `left_volt_cmd_topic`: Custom topic for left motor voltage commands (optional)
+/// - `right_volt_cmd_topic`: Custom topic for right motor voltage commands (optional)
+///
+/// ## Topics:
+/// ### Subscribed:
+/// - `/model/{model_name}/{joint_name}/motor_volt_cmd` (msgs::Double): Voltage command
+///
+/// ### Published:
+/// - `/model/{model_name}/{joint_name}/motor_output_torque` (msgs::Double): Motor output torque
+/// - `/model/{model_name}/{joint_name}/joint_velocity` (msgs::Double): Joint angular velocity
+/// - `/model/{model_name}/{joint_name}/motor_voltage` (msgs::Double): Actual motor voltage
+/// - `/model/{model_name}/{joint_name}/motor_current` (msgs::Double): Motor current
+/// - `/model/{model_name}/{joint_name}/motor_encoder` (msgs::Int32): Encoder count
 class md25_plugin
     : public System, 
       public ISystemPreUpdate, 
       public ISystemConfigure
 {
-  public: md25_plugin();
-  public: ~md25_plugin() override;
-  public: void PreUpdate(const UpdateInfo &_info,
-              EntityComponentManager &_ecm) override;
-  public: void Configure(const Entity &_entity,
-                         const std::shared_ptr<const sdf::Element> &_sdf,
-                         EntityComponentManager &_ecm,
-                         EventManager &_eventMgr) override;
-  private: std::unique_ptr<md25_pluginPrivate> dataPtr;
+  public:
+    /// \brief Constructor
+    md25_plugin();
+
+    /// \brief Destructor
+    ~md25_plugin() override;
+
+    /// \brief Configure the plugin
+    /// \param[in] _entity Entity associated with this plugin
+    /// \param[in] _sdf SDF element containing plugin configuration
+    /// \param[in] _ecm Entity Component Manager
+    /// \param[in] _eventMgr Event manager
+    void Configure(const Entity &_entity,
+                   const std::shared_ptr<const sdf::Element> &_sdf,
+                   EntityComponentManager &_ecm,
+                   EventManager &_eventMgr) override;
+
+    /// \brief Update the plugin before physics update
+    /// \param[in] _info Update information from simulation
+    /// \param[in] _ecm Entity Component Manager
+    void PreUpdate(const UpdateInfo &_info,
+                   EntityComponentManager &_ecm) override;
+
+  private:
+    /// \brief Private data pointer
+    std::unique_ptr<md25_pluginPrivate> dataPtr;
 };
 
 }
