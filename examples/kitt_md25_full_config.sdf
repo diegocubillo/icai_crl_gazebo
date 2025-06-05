@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+
+<sdf version="1.9">
+  <model name="kitt" canonical_link="car_body">
+    <include merge="true">
+      <uri>package://icai_crl_description/models/robots/kitt</uri>
+    </include>
+
+    <!-- MD25 driver plugin with all configurable parameters -->
+    <plugin
+      filename="md25_plugin"
+      name="icai_crl_gazebo::MD25Plugin">
+      <!-- Required parameters -->
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      
+      <!-- Motor electrical parameters -->
+      <electromotive_force_constant>0.539111</electromotive_force_constant>
+      <electric_resistance>7.101</electric_resistance>
+      <electric_inductance>0.0034</electric_inductance>
+      
+      <!-- Mechanical parameters -->
+      <gear_ratio>1.0</gear_ratio>
+      
+      <!-- Encoder configuration -->
+      <encoder_ppr>360</encoder_ppr>
+      <encoder_rate>200</encoder_rate>
+      
+      <!-- Driver behavior parameters -->
+      <max_update_steps>10</max_update_steps>
+      <performance_mode>true</performance_mode>
+      <voltage_update_period>25</voltage_update_period>
+      
+      <!-- Custom topic names (optional) -->
+      <left_volt_cmd_topic>/model/kitt/left_wheel_joint/voltage_command</left_volt_cmd_topic>
+      <right_volt_cmd_topic>/model/kitt/right_wheel_joint/voltage_command</right_volt_cmd_topic>
+    </plugin>
+  </model>
+</sdf>

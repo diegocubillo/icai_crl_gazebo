@@ -12,7 +12,7 @@ This package contains gazebo simulation configurations, custom plugins and model
 Clone this repository inside the src folder of a ROS 2 workspace and compile using `colcon build`
 
 ### Launch
-Worlds can be launched via command `ign gazebo` or via a launch file (for example from package icai_crl_bringup). Models can only be launched if included inside a world or with a launch file.
+Worlds can be launched via command `ign gazebo` or via a launch file (for example from package icai_crl_bringup_sim). Models can only be launched if included inside a world or with a launch file.
 
 ## Worlds
 
@@ -44,17 +44,25 @@ Extension of kitt sensorisation for navigation purposes. It includes the followi
 * `/model/kitt/rplidar_a2m8` (gz.msgs.LaserScan) RPLIDAR A2M8 360º LiDAR configured with its default parameters.
 
 
-### kitt_vr_dd
-
-Kitt model with two cameras to generate a VR front view. These cameras are weightless and fixed to the original model.
-* `/model/kitt/left_vr_camera` and `/model/kitt/right_vr_camera` (gz.msgs.Image) Images from each eye's camera (320x240).
-
-### kitt_fpv_dd
-Kitt model with a front camera to generate a FPV view. This camera is weightless and fixed to the original model.
-* `/model/kitt/fpv_camera` (gz.msgs.Image) Front camera image (640x480).
-
 ### kitt_md25
-TODO Include models based on MD25 plugin.
+Kitt model equipped with the MD25 motor driver plugin that simulates a realistic DC motor control with voltage quantization, current simulation, and encoder feedback.
+
+Transport topics:
+* `/model/kitt/imu` (gz.msgs.IMU) IMU with 'x' pointing forward, 'y' pointing right and 'z' pointing down.
+
+* `/model/kitt/front_dist_sensor` and `/model/kitt/back_dist_sensor` (gz.msgs.LaserScan) Lateral sensors to compute distance and orientation relative to a wall.
+
+* `/model/kitt/{joint_name}/motor_volt_cmd` (gz.msgs.Double) Voltage command for each motor.
+
+* `/model/kitt/{joint_name}/motor_output_torque` (gz.msgs.Double) Motor output torque.
+
+* `/model/kitt/{joint_name}/joint_velocity` (gz.msgs.Double) Joint angular velocity.
+
+* `/model/kitt/{joint_name}/motor_voltage` (gz.msgs.Double) Actual motor voltage.
+
+* `/model/kitt/{joint_name}/motor_current` (gz.msgs.Double) Motor current.
+
+* `/model/kitt/{joint_name}/motor_encoder` (gz.msgs.Int32) Encoder count.
 
 ### Labeled models
 TODO enumerate names, explain variable `model_name` and mention jinja2.
@@ -62,5 +70,32 @@ TODO enumerate names, explain variable `model_name` and mention jinja2.
 
 ## Plugins
 
-TODO Include MD25 plugin, add models using it and write documentation. Don't forget to update dependencies.
+### MD25 Plugin
+
+The MD25 plugin simulates the behavior of an MD25 dual motor driver board, providing realistic DC motor control with voltage quantization, current simulation, and encoder feedback.
+
+#### Parameters:
+
+* `left_joint`: Name of the left motor joint (required)
+* `right_joint`: Name of the right motor joint (required)
+* `electromotive_force_constant`: EMF constant in Nm/A (default: 0.539111)
+* `electric_resistance`: Motor resistance in Ohms (default: 7.101)
+* `electric_inductance`: Motor inductance in Henry (default: 0.0034)
+* `gear_ratio`: Gear ratio motor to output (default: 1.0)
+* `encoder_ppr`: Encoder pulses per revolution (default: 360)
+* `encoder_rate`: Encoder publishing rate in Hz (default: 200)
+* `max_update_steps`: Maximum register update steps (default: 10)
+* `performance_mode`: Enable performance mode (default: true)
+* `voltage_update_period`: Voltage update period in ms (default: 25)
+* `left_volt_cmd_topic`: Custom topic for left motor voltage commands (optional)
+* `right_volt_cmd_topic`: Custom topic for right motor voltage commands (optional)
+
+#### Topics:
+
+* `/model/{model_name}/{joint_name}/motor_volt_cmd` (msgs::Double): Voltage command
+* `/model/{model_name}/{joint_name}/motor_output_torque` (msgs::Double): Motor output torque
+* `/model/{model_name}/{joint_name}/joint_velocity` (msgs::Double): Joint angular velocity
+* `/model/{model_name}/{joint_name}/motor_voltage` (msgs::Double): Actual motor voltage
+* `/model/{model_name}/{joint_name}/motor_current` (msgs::Double): Motor current
+* `/model/{model_name}/{joint_name}/motor_encoder` (msgs::Int32): Encoder count
 
