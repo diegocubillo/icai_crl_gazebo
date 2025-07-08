@@ -6,6 +6,16 @@
     <physics name="1ms" type="ignored">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
+      <dart>
+        <solver>
+          <solver_type>pgs</solver_type>
+        </solver>
+      </dart>
+      <ode>
+        <solver>
+          <friction_model>cone_model</friction_model>
+        </solver>
+      </ode>
     </physics>
 
     <!-- Physics plugin -->
