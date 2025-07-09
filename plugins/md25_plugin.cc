@@ -139,6 +139,19 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
            << voltageUpdatePeriod << "] milliseconds (only if performance mode is disabled).\n";
   }
 
+  if (_sdf->HasElement("diff_voltage_drop"))
+  {
+    double diffVoltageDrop;
+    diffVoltageDrop = _sdf->Get<double>("diff_voltage_drop");
+    ignmsg << "Differential voltage drop set to ["
+           << diffVoltageDrop << "] Volts.\n";
+    halfDifferentialVoltageDrop = diffVoltageDrop/2.0;
+  }
+
+  //Define left and right motors
+  this->leftMotor.isLeftMotor = true;
+  this->rightMotor.isLeftMotor = false;
+
   // Calculate encoder's radians per pulse
   if (this->encoderPulsesPerRev <= 0)
   {
@@ -455,6 +468,14 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
       // Final voltage quantization
       this->motorVolt = _dataPtr->voltageQuantizationStep * 
                        std::trunc(this->motorVoltUnquantized / _dataPtr->voltageQuantizationStep);
+    }
+    if (this->isLeftMotor)
+    {
+      this->motorVolt += _dataPtr->halfDifferentialVoltageDrop;
+    }
+    else
+    {
+      this->motorVolt -= _dataPtr->halfDifferentialVoltageDrop;
     }
   }
 

@@ -73,6 +73,7 @@ class md25_motor
     Entity jointEntity;       ///< Entity ID of the controlled joint
     std::string jointName;    ///< Name of the controlled joint
     MotorState motorState = DISABLED;  ///< Current motor state
+    bool isLeftMotor = false;  ///< Whether the motor is at the left or right side of the robot
 
   private:
     // Voltage control variables
@@ -130,6 +131,7 @@ class md25_pluginPrivate
     double electromotiveForceConstant = 0.539111;  ///< EMF constant (Nm/A)
     double electricResistance = 7.101;         ///< Electric resistance (Ohm)
     double electricInductance = 0.0034;        ///< Electric inductance (Henry)
+    double halfDifferentialVoltageDrop = -0.0104855/2.0; // Differential voltage between motors (V)
     double gearRatio = 1.0;                    ///< Gear ratio (motor to output)
 
     // Driver characteristics
