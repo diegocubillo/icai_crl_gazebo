@@ -64,8 +64,15 @@ Transport topics:
 
 * `/model/kitt/{joint_name}/motor_encoder` (gz.msgs.Int32) Encoder count.
 
-### Labeled models
-TODO enumerate names, explain variable `model_name` and mention jinja2.
+### Model Templates
+
+Each of the models described above (`kitt_dd`, `kitt_nav_dd`, `kitt_md25`) has a corresponding template version located in a directory ending with `_template`.
+
+These templates solve an issue with topic names construction. If a model is spawned in Gazebo with a different name (e.g., for multi-robot simulations), not all topics follow the same naming standard, leading to inconsistencies when using ROS 2 namespaces.
+
+By using the [Jinja](https://jinja.palletsprojects.com/) templating engine, these files allow for the dynamic generation of model configurations. A `model_name` variable is injected into the `.sdf.jinja` and `model.config.jinja` files before they are loaded. This ensures that all transport topics are correctly namespaced with the final name given to the model upon spawning (e.g., `/model/my_robot_name/imu`).
+
+This process is handled automatically by the ROS 2 launch files in the `icai_crl_bringup_sim` package, which allow specifying the desired `model_name` as a launch argument.
 
 
 ## Plugins
