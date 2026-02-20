@@ -4,6 +4,12 @@
   <model name="kitt" canonical_link="car_body">
     <include merge="true">
       <uri>package://icai_crl_description/models/robots/kitt</uri>
+
+      <experimental:params>
+        <!-- Remove wall follower module -->
+        <link element_id="wall_follower" action="remove"/>
+        <joint element_id="wall_follower_joint" action="remove"/>
+      </experimental:params>
     </include>
 
     <!-- Differential drive plugin -->

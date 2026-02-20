@@ -8,12 +8,10 @@
         <sensor element_id="car_body::imu_sensor" action="modify">
           <topic>model/{{ model_name }}/imu</topic>
         </sensor>
-        <sensor element_id="wall_follower::front_dist_sensor" action="modify">
-          <topic>model/{{ model_name }}/front_dist_sensor/scan</topic>
-        </sensor>
-        <sensor element_id="wall_follower::back_dist_sensor" action="modify">
-          <topic>model/{{ model_name }}/back_dist_sensor/scan</topic>
-        </sensor>
+
+        <!-- Remove wall follower module -->
+        <link element_id="wall_follower" action="remove"/>
+        <joint element_id="wall_follower_joint" action="remove"/>
       </experimental:params>
     </include>
 
