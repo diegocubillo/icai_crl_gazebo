@@ -97,11 +97,39 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
            << this->electricInductance << " Henry]\n";
   }
 
+  if (_sdf->HasElement("motor_axis_inertia"))
+  {
+    this->motorAxisInertia = _sdf->Get<double>("motor_axis_inertia");
+    ignmsg << "Motor axis inertia initialized to ["
+           << this->motorAxisInertia << " Kg·m^2]\n";
+  }
+
   if (_sdf->HasElement("gear_ratio"))
   {
     this->gearRatio = _sdf->Get<double>("gear_ratio");
     ignmsg << "Gear ratio initialized to ["
            << this->gearRatio << "]\n";
+  }
+
+  if (_sdf->HasElement("backlash_width"))
+  {
+    this->backlashWidth = _sdf->Get<double>("backlash_width");
+    ignmsg << "Backlash width initialized to ["
+           << this->backlashWidth << " rad]\n";
+  }
+
+  if (_sdf->HasElement("motor_viscous_friction"))
+  {
+    this->motorViscousFriction = _sdf->Get<double>("motor_viscous_friction");
+    ignmsg << "Motor viscous friction initialized to ["
+           << this->motorViscousFriction << " Nm·s/rad]\n";
+  }
+
+  if (_sdf->HasElement("motor_static_friction"))
+  {
+    this->motorStaticFriction = _sdf->Get<double>("motor_static_friction");
+    ignmsg << "Motor static friction initialized to ["
+           << this->motorStaticFriction << " Nm]\n";
   }
 
   if (_sdf->HasElement("encoder_ppr"))
@@ -162,6 +190,10 @@ int md25_pluginPrivate::LoadMotorConfig(const std::shared_ptr<const sdf::Element
     this->radPerPulse = 2.0 * M_PI / static_cast<double>(this->encoderPulsesPerRev);
   }
   
+  // Initialize backlash angle to match initial state (CONTACT_POSITIVE)
+  this->leftMotor.InitBacklash(this->backlashWidth);
+  this->rightMotor.InitBacklash(this->backlashWidth);
+
   return this->ValidateParameters();
 }
 
@@ -223,6 +255,10 @@ void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Elemen
     this->leftMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
         "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_encoder");
     ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_encoder]\n";
+
+    this->leftMotor.backlashAnglePublisher = this->node.Advertise<msgs::Double>(
+        "/model/" + this->model.Name(_ecm) + "/" + this->leftMotor.jointName + "/motor_backlash_angle");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->leftMotor.jointName << "/motor_backlash_angle]\n";
     left_motor_not_advertise: ;
   }
 
@@ -281,6 +317,10 @@ void md25_pluginPrivate::AdvertiseTopics(const std::shared_ptr<const sdf::Elemen
     this->rightMotor.encoderPublisher = this->node.Advertise<msgs::Int32>(
         "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_encoder");
     ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_encoder]\n";
+
+    this->rightMotor.backlashAnglePublisher = this->node.Advertise<msgs::Double>(
+        "/model/" + this->model.Name(_ecm) + "/" + this->rightMotor.jointName + "/motor_backlash_angle");
+    ignmsg << "Advertised topic [/model/" << this->model.Name(_ecm) << "/" << this->rightMotor.jointName << "/motor_backlash_angle]\n";
     right_motor_not_advertise: ;
   }
 }
@@ -312,6 +352,30 @@ int md25_pluginPrivate::ValidateParameters()
     {
         ok = -1;
         ignwarn << "Incorrect encoder rate: it must be positive and non zero!\n";
+    }
+
+    if (this->backlashWidth < 0)
+    {
+        ok = -1;
+        ignwarn << "Incorrect backlash width: it must be non-negative!\n";
+    }
+
+    if (this->motorAxisInertia <= 0)
+    {
+        ok = -1;
+        ignwarn << "Incorrect motor axis inertia: it must be positive and non-zero!\n";
+    }
+
+    if (this->motorViscousFriction < 0)
+    {
+        ok = -1;
+        ignwarn << "Incorrect motor viscous friction: it must be non-negative!\n";
+    }
+
+    if (this->motorStaticFriction < 0)
+    {
+        ok = -1;
+        ignwarn << "Incorrect motor static friction: it must be non-negative!\n";
     }
     return ok;
 }
@@ -482,9 +546,10 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
   // Process motor control if joint velocity data is available
   if (!jointVelComp->Data().empty())
   {
-    // Publish joint angular velocity
+    // Get wheel angular velocity and publish
+    double wheelOmega = jointVelComp->Data().at(0);
     msgs::Double jointVelMsg;
-    jointVelMsg.set_data(jointVelComp->Data().at(0));
+    jointVelMsg.set_data(wheelOmega);
     jointVelMsg.mutable_header()->mutable_stamp()->CopyFrom(convert<msgs::Time>(_info.simTime));
     this->jointVelocityPublisher.Publish(jointVelMsg);
 
@@ -494,43 +559,114 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     voltMsg.mutable_header()->mutable_stamp()->CopyFrom(convert<msgs::Time>(_info.simTime));
     this->voltagePublisher.Publish(voltMsg);
 
-    // Calculate rotor angular velocity (accounting for gear ratio)
-    double internalOmega = jointVelComp->Data().at(0) * _dataPtr->gearRatio;
-    
+    // Determine motor angular velocity based on backlash state
+    double motorOmega;
+    if (this->backlashState == FREE_PLAY)
+    {
+      motorOmega = this->internalMotorOmega;
+    }
+    else
+    {
+      motorOmega = wheelOmega * _dataPtr->gearRatio;
+    }
+
     // Motor parameter shortcuts for readability
     const double& L = _dataPtr->electricInductance;
     const double& R = _dataPtr->electricResistance;
     const double& Km = _dataPtr->electromotiveForceConstant;
     const double& oPrev = this->prevInternalOmega;
     const double& iPrev = this->internalCurrent;
-    const double& o0 = internalOmega;
 
     // Calculate internal current using discrete motor model
     // Formula: i[k] = (V[k] + V[k-1] - Ke*(ω[k] + ω[k-1]) - (R-2L/T)*i[k-1]) / (R+2L/T)
-    this->internalCurrent = (this->motorVolt + this->prevMotorVolt - Km * (o0 + oPrev) - 
+    this->internalCurrent = (this->motorVolt + this->prevMotorVolt - Km * (motorOmega + oPrev) - 
                             (R - 2*L/_dt) * iPrev) / (R + 2*L/_dt);
     
-    // Calculate output torque (accounting for gear ratio)
-    double torque = Km * this->internalCurrent * _dataPtr->gearRatio;
+    // Calculate torques
+    double motorTorque = Km * this->internalCurrent;                // Electromagnetic torque at motor shaft
+    double wheelTorque = motorTorque * _dataPtr->gearRatio;         // Torque at wheel after gear ratio
     
     // Update state variables for next iteration
-    this->prevInternalOmega = o0;
+    this->prevInternalOmega = motorOmega;
     this->prevMotorVolt = motorVolt;
 
-    // Apply calculated torque to joint
+    // --- Gear backlash state machine ---
+
+    if (_dataPtr->backlashWidth > 0.0)
+    {
+      // Check for CONTACT → FREE_PLAY transitions
+      if ((this->backlashState == CONTACT_POSITIVE && wheelTorque < -_dataPtr->motorStaticFriction) ||
+          (this->backlashState == CONTACT_NEGATIVE && wheelTorque > _dataPtr->motorStaticFriction))
+      {
+        if (this->backlashState == CONTACT_POSITIVE)
+        {
+            ignwarn << "Free play activated with negative torque.\n";
+        }
+        else
+        {
+            ignwarn << "Free play activated with positive torque.\n";
+        }
+        this->backlashState = FREE_PLAY;
+        this->internalMotorOmega = wheelOmega * _dataPtr->gearRatio;
+      }
+
+      if (this->backlashState == FREE_PLAY)
+      {
+        // Motor is decoupled from wheel: no torque transmitted
+        wheelTorque = 0.0;
+
+        // Integrate motor angular velocity (only viscous friction acts in free play)
+        double netMotorTorque = motorTorque -
+                                _dataPtr->motorViscousFriction * this->internalMotorOmega;
+        if (abs(netMotorTorque) <= _dataPtr->motorStaticFriction)
+        {
+            netMotorTorque = 0.0;
+        }
+        else
+        {
+            double signedStaticFriction = (netMotorTorque >= 0) ? _dataPtr->motorStaticFriction : -_dataPtr->motorStaticFriction;
+            netMotorTorque += signedStaticFriction;
+        }
+        
+        double motorAccel = netMotorTorque / _dataPtr->motorAxisInertia;
+        this->internalMotorOmega += motorAccel * _dt;
+
+        // Update backlash angle (relative motor-to-wheel displacement at wheel reference)
+        this->backlashAngle +=
+            (this->internalMotorOmega / _dataPtr->gearRatio - wheelOmega) * _dt;
+
+        // Check for FREE_PLAY → CONTACT transitions
+        if (this->backlashAngle >= _dataPtr->backlashWidth)
+        {
+            this->backlashAngle = _dataPtr->backlashWidth;
+            this->backlashState = CONTACT_POSITIVE;
+            this->internalMotorOmega = wheelOmega * _dataPtr->gearRatio;  // Inelastic impact
+            ignwarn << "Recovered contact with positive torque.\n";
+        }
+        else if (this->backlashAngle <= 0.0)
+        {
+            this->backlashAngle = 0.0;
+            this->backlashState = CONTACT_NEGATIVE;
+            this->internalMotorOmega = wheelOmega * _dataPtr->gearRatio;  // Inelastic impact
+            ignwarn << "Recovered contact with negative torque.\n";
+        }
+      }
+    }
+
+    // Apply torque to joint
     auto torqueComp = _ecm.Component<components::JointForceCmd>(this->jointEntity);
     if (torqueComp == nullptr)
     {
-      _ecm.CreateComponent(this->jointEntity, components::JointForceCmd({torque}));
+      _ecm.CreateComponent(this->jointEntity, components::JointForceCmd({wheelTorque}));
     }
     else
     {
-      torqueComp->Data()[0] = torque;
+      torqueComp->Data()[0] = wheelTorque;
     }
 
     // Publish motor telemetry data
     msgs::Double torqueMsg;
-    torqueMsg.set_data(torque);
+    torqueMsg.set_data(wheelTorque);
     torqueMsg.mutable_header()->mutable_stamp()->CopyFrom(convert<msgs::Time>(_info.simTime));
     this->torquePublisher.Publish(torqueMsg);
     
@@ -538,6 +674,12 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
     currentMsg.set_data(this->internalCurrent);
     currentMsg.mutable_header()->mutable_stamp()->CopyFrom(convert<msgs::Time>(_info.simTime));
     this->currentPublisher.Publish(currentMsg);
+
+    // Publish backlash angle for debugging
+    msgs::Double backlashMsg;
+    backlashMsg.set_data(this->backlashAngle);
+    backlashMsg.mutable_header()->mutable_stamp()->CopyFrom(convert<msgs::Time>(_info.simTime));
+    this->backlashAnglePublisher.Publish(backlashMsg);
   }
 }
 

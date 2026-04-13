@@ -38,6 +38,13 @@ class md25_motor
         NOT_AVAILABLE = 2  ///< Motor joint not found in model
     };
 
+    /// \brief Gear backlash coupling states
+    enum BacklashState {
+        CONTACT_POSITIVE = 0,  ///< Engaged at positive end of backlash zone
+        CONTACT_NEGATIVE = 1,  ///< Engaged at negative end of backlash zone
+        FREE_PLAY = 2          ///< Motor decoupled within backlash zone
+    };
+
     /// \brief Constructor
     md25_motor() = default;
 
@@ -61,6 +68,14 @@ class md25_motor
     /// \param[in] _dt Simulation time step in seconds
     void MotorSystem(const UpdateInfo &_info, EntityComponentManager &_ecm, md25_pluginPrivate* _dataPtr, const double &_dt);
 
+    /// \brief Initialize backlash angle (called after parameter loading)
+    /// \param[in] _backlashWidth Total backlash zone width in radians
+    void InitBacklash(double _backlashWidth)
+    {
+      this->backlashAngle = _backlashWidth;
+      this->backlashState = CONTACT_POSITIVE;
+    }
+
   public:
     // Publishers for motor telemetry
     transport::Node::Publisher torquePublisher;         ///< Publisher for motor output torque
@@ -68,6 +83,7 @@ class md25_motor
     transport::Node::Publisher voltagePublisher;        ///< Publisher for motor voltage
     transport::Node::Publisher currentPublisher;        ///< Publisher for motor current
     transport::Node::Publisher encoderPublisher;        ///< Publisher for encoder count
+    transport::Node::Publisher backlashAnglePublisher;   ///< Publisher for backlash angle
 
     // Joint identification
     Entity jointEntity;       ///< Entity ID of the controlled joint
@@ -96,6 +112,11 @@ class md25_motor
     double internalCurrent = 0.0;      ///< Internal motor current (A)
     double prevInternalOmega = 0.0;    ///< Previous internal angular velocity (rad/s)
     double prevMotorVolt = 0.0;        ///< Previous motor voltage for discrete model
+
+    // Gear backlash state variables
+    BacklashState backlashState = CONTACT_NEGATIVE;  ///< Current backlash coupling state
+    double backlashAngle = 0.0;          ///< Current angle within backlash zone (rad)
+    double internalMotorOmega = 0.0;     ///< Motor angular velocity when decoupled (rad/s)
 };
 
 /// \brief Private data class for MD25 plugin
@@ -131,8 +152,12 @@ class md25_pluginPrivate
     double electromotiveForceConstant = 0.539111;  ///< EMF constant (Nm/A)
     double electricResistance = 7.101;         ///< Electric resistance (Ohm)
     double electricInductance = 0.0034;        ///< Electric inductance (Henry)
+    double motorAxisInertia = 0.00005;         ///< Rotor and gears inertia (Kg·m^2)
     double halfDifferentialVoltageDrop = -0.0104855/2.0; ///< Differential voltage between motors (V)
     double gearRatio = 1.0;                    ///< Gear ratio (motor to output)
+    double backlashWidth = 1.8 * M_PI / 180;   ///< Total backlash zone width at wheel (rad)
+    double motorViscousFriction = 0.0;         ///< Rotor viscous friction (Nm·s/rad), active only in free play
+    double motorStaticFriction = 0.0;          ///< Rotor static friction (Nm), active only in free play 
 
     // Driver characteristics
     int registerSize = 127;           ///< Register size from 0 to max voltage
@@ -174,6 +199,10 @@ class md25_pluginPrivate
 /// - `electric_resistance`: Motor resistance in Ohms (default: 7.101)
 /// - `electric_inductance`: Motor inductance in Henry (default: 0.0034)
 /// - `gear_ratio`: Gear ratio motor to output (default: 1.0)
+/// - `backlash_width`: Gear backlash zone width at wheel in radians (default: ~0.0314)
+/// - `motor_axis_inertia`: Motor rotor and gears inertia in Kg·m^2 (default: 0.00005)
+/// - `motor_viscous_friction`: Rotor viscous friction in Nm·s/rad, free play only (default: 0.0)
+/// - `motor_static_friction`: Rotor static friction in Nm, free play only (default: 0.0)
 /// - `encoder_ppr`: Encoder pulses per revolution (default: 360)
 /// - `encoder_rate`: Encoder publishing rate in Hz (default: 200)
 /// - `max_update_steps`: Maximum register update steps (default: 10)
@@ -192,6 +221,7 @@ class md25_pluginPrivate
 /// - `/model/{model_name}/{joint_name}/motor_voltage` (msgs::Double): Actual motor voltage
 /// - `/model/{model_name}/{joint_name}/motor_current` (msgs::Double): Motor current
 /// - `/model/{model_name}/{joint_name}/motor_encoder` (msgs::Int32): Encoder count
+/// - `/model/{model_name}/{joint_name}/motor_backlash_angle` (msgs::Double): Backlash angle
 class md25_plugin
     : public System, 
       public ISystemPreUpdate, 
