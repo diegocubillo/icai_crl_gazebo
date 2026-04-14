@@ -149,15 +149,15 @@ class md25_pluginPrivate
 
     // Physical parameters
     double batteryVoltage = 12.0;              ///< Battery voltage (V) - not integrated with battery plugin yet
-    double electromotiveForceConstant = 0.539111;  ///< EMF constant (Nm/A)
+    double electromotiveForceConstant = 0.637186571529604;  ///< EMF constant (Nm/A)
     double electricResistance = 7.101;         ///< Electric resistance (Ohm)
     double electricInductance = 0.0034;        ///< Electric inductance (Henry)
-    double motorAxisInertia = 0.00005;         ///< Rotor and gears inertia (Kg·m^2)
+    double motorAxisInertia = 0.000379556;         ///< Rotor and gears inertia (Kg·m^2)
     double halfDifferentialVoltageDrop = -0.0104855/2.0; ///< Differential voltage between motors (V)
     double gearRatio = 1.0;                    ///< Gear ratio (motor to output)
     double backlashWidth = 1.8 * M_PI / 180;   ///< Total backlash zone width at wheel (rad)
-    double motorViscousFriction = 0.0;         ///< Rotor viscous friction (Nm·s/rad), active only in free play
-    double motorStaticFriction = 0.0;          ///< Rotor static friction (Nm), active only in free play 
+    double motorViscousFriction = 0.00119873;         ///< Rotor viscous friction (Nm·s/rad), active only in free play
+    double motorStaticFriction = 0.0564036;          ///< Rotor static friction (Nm), active only in free play 
 
     // Driver characteristics
     int registerSize = 127;           ///< Register size from 0 to max voltage
