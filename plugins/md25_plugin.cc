@@ -600,11 +600,11 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
       {
         if (this->backlashState == CONTACT_POSITIVE)
         {
-            ignwarn << "Free play activated with negative torque.\n";
+            ignmsg << "Free play activated with negative torque.\n";
         }
         else
         {
-            ignwarn << "Free play activated with positive torque.\n";
+            ignmsg << "Free play activated with positive torque.\n";
         }
         this->backlashState = FREE_PLAY;
         this->internalMotorOmega = wheelOmega * _dataPtr->gearRatio;
@@ -640,15 +640,23 @@ void md25_motor::MotorSystem(const UpdateInfo &_info, EntityComponentManager &_e
         {
             this->backlashAngle = _dataPtr->backlashWidth;
             this->backlashState = CONTACT_POSITIVE;
-            this->internalMotorOmega = wheelOmega * _dataPtr->gearRatio;  // Inelastic impact
-            ignwarn << "Recovered contact with positive torque.\n";
+            // Impact impulse
+            double deltaOmega = this->internalMotorOmega - wheelOmega * _dataPtr->gearRatio;
+            double impactTorque = _dataPtr->motorAxisInertia * deltaOmega / _dt / _dataPtr->gearRatio;
+            wheelTorque += impactTorque;
+            this->internalMotorOmega = wheelOmega * _dataPtr->gearRatio;
+            ignmsg << "Recovered contact with positive torque.\n";
         }
         else if (this->backlashAngle <= 0.0)
         {
             this->backlashAngle = 0.0;
             this->backlashState = CONTACT_NEGATIVE;
-            this->internalMotorOmega = wheelOmega * _dataPtr->gearRatio;  // Inelastic impact
-            ignwarn << "Recovered contact with negative torque.\n";
+            // Impact impulse
+            double deltaOmega = this->internalMotorOmega - wheelOmega * _dataPtr->gearRatio;
+            double impactTorque = _dataPtr->motorAxisInertia * deltaOmega / _dt / _dataPtr->gearRatio;
+            wheelTorque += impactTorque;
+            this->internalMotorOmega = wheelOmega * _dataPtr->gearRatio;
+            ignmsg << "Recovered contact with negative torque.\n";
         }
       }
     }

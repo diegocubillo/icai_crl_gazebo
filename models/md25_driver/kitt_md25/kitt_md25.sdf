@@ -12,6 +12,9 @@
       name="icai_crl_gazebo::MD25Plugin">
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>
+      <motor_static_friction>0.07</motor_static_friction>     <!-- Similar value to the one in icai_crl_description -->
+      <motor_viscous_friction>0.0009</motor_viscous_friction> <!-- Similar value to the one in icai_crl_description -->
+
     </plugin>
   </model>
 </sdf>
