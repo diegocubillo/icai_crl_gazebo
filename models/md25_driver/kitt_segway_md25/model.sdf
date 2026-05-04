@@ -12,6 +12,7 @@
       name="icai_crl_gazebo::MD25Plugin">
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>
+      <electromotive_force_constant>0.5969643726786008</electromotive_force_constant>
     </plugin>
   </model>
 </sdf>
