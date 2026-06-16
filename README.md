@@ -17,10 +17,16 @@ Worlds can be launched via command `ign gazebo` or via a launch file (for exampl
 ## Worlds
 
 ### empty_world
-Contains a ground plane iluminated by a directional light source (the Sun). 
+Contains a ground plane iluminated by a directional light source (the Sun).
+
+### wall_world
+Similar to empty_world, but adding a long wall for wall following controllers.
 
 ### control_laboratory
 ICAI's Control Laboratory model with its lights and furniture. Also includes the Sun to illuminate the street view through the windows.
+
+### control_laboratory_lite
+Same laboratory with no lights to reduce computational load.
 
 
 ## Models
@@ -64,6 +70,9 @@ Transport topics:
 
 * `/model/kitt/{joint_name}/motor_encoder` (gz.msgs.Int32) Encoder count.
 
+### kitt_segway_md25
+Similar to kitt_md25, but with lateral sensors reoriented to perform as a self-balancing vehicle in inverted pendulum configuration.
+
 ### Model Templates
 
 Each of the models described above (`kitt_dd`, `kitt_nav_dd`, `kitt_md25`) has a corresponding template version located in a directory ending with `_template`.
@@ -88,6 +97,7 @@ The MD25 plugin simulates the behavior of an MD25 dual motor driver board, provi
 * `electromotive_force_constant`: EMF constant in Nm/A (default: 0.539111)
 * `electric_resistance`: Motor resistance in Ohms (default: 7.101)
 * `electric_inductance`: Motor inductance in Henry (default: 0.0034)
+* `diff_voltage_drop`: Differential voltage drop between motors (default: -0.01048)
 * `gear_ratio`: Gear ratio motor to output (default: 1.0)
 * `encoder_ppr`: Encoder pulses per revolution (default: 360)
 * `encoder_rate`: Encoder publishing rate in Hz (default: 200)

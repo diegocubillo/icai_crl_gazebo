@@ -18,6 +18,7 @@
       <electromotive_force_constant>0.539111</electromotive_force_constant>
       <electric_resistance>7.101</electric_resistance>
       <electric_inductance>0.0034</electric_inductance>
+      <diff_voltage_drop>-0.0104855</diff_voltage_drop>
       
       <!-- Mechanical parameters -->
       <gear_ratio>1.0</gear_ratio>
@@ -30,6 +31,7 @@
       <max_update_steps>10</max_update_steps>
       <performance_mode>true</performance_mode>
       <voltage_update_period>25</voltage_update_period>
+      
       
       <!-- Custom topic names (optional) -->
       <left_volt_cmd_topic>/model/kitt/left_wheel_joint/voltage_command</left_volt_cmd_topic>
